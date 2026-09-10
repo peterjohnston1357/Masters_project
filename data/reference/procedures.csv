@@ -1,0 +1,26 @@
+procedure_id,procedure_name,region,type,size_category,mean_duration_min,sd_duration_min,duration_basis
+DHS,Dynamic Hip Screw,Hip,Trauma,Medium,105,26,CV-Assumed
+HEMI,Hip Hemiarthroplasty,Hip,Trauma,Medium,117,29,CV-Assumed
+IMHS,Intramedullary Hip Screw,Hip,Trauma,Large,137,34,CV-Assumed
+THR,Total Hip Replacement (primary),Hip,Elective,Medium,102,26,Published
+RTHR,Revision Total Hip Replacement,Hip,Elective,Large,195,49,CV-Assumed
+TKR,Total Knee Replacement (primary),Knee,Elective,Medium,116,25,Published
+RTKR,Revision Total Knee Replacement,Knee,Elective,Large,160,40,CV-Assumed
+KARTH,Knee Arthroscopy / Meniscectomy,Knee,Elective,Small,30,8,CV-Assumed
+ACLR,ACL Reconstruction,Knee,Elective,Medium,110,28,CV-Assumed
+FEMNAIL,Femoral Nailing,Leg,Trauma,Large,173,43,CV-Assumed
+TIBNAIL,Tibial Nailing,Leg,Trauma,Large,168,42,CV-Assumed
+ANKLEORIF_L,Ankle ORIF - Lateral Fibular Plating,Ankle-Foot,Trauma,Medium,119,30,CV-Assumed
+ANKLEORIF_B,Ankle ORIF - Bimalleolar,Ankle-Foot,Trauma,Large,125,31,CV-Assumed
+ANKARTH,Ankle Arthroscopy,Ankle-Foot,Elective,Small,40,10,CV-Assumed
+ACHILLES,Achilles Tendon Repair,Ankle-Foot,Elective,Medium,60,15,CV-Assumed
+HALLUX,Hallux Valgus Correction,Ankle-Foot,Elective,Medium,60,15,CV-Assumed
+SHARTH,Shoulder Arthroscopy / Subacromial Decompression,Shoulder,Elective,Medium,60,15,CV-Assumed
+RCR,Arthroscopic Rotator Cuff Repair,Shoulder,Elective,Medium,80,20,CV-Assumed
+TSR,Total Shoulder Replacement,Shoulder,Elective,Large,120,30,CV-Assumed
+ELARTH,Elbow Arthroscopy,Elbow,Elective,Medium,45,11,CV-Assumed
+DRORIF,Distal Radius Fracture ORIF,Wrist-Hand,Trauma,Medium,60,15,CV-Assumed
+WRARTH,Wrist Arthroscopy / TFCC Repair,Wrist-Hand,Elective,Medium,45,11,CV-Assumed
+CTD,Carpal Tunnel Decompression,Wrist-Hand,Elective,Small,15,4,CV-Assumed
+TFR,Trigger Finger Release,Wrist-Hand,Elective,Small,15,4,CV-Assumed
+DUPUYTREN,Dupuytren's Contracture Release,Wrist-Hand,Elective,Medium,45,11,CV-Assumed

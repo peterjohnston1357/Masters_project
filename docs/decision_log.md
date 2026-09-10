@@ -121,3 +121,30 @@ was compliant, when in fact any patient past 18 weeks has breached the RTT
 standard — the 52-week threshold is a more severe escalation tier, not a
 separate breach definition. Separating the compliance flag from the
 descriptive band removes the ambiguity entirely.
+
+## 2026-09-10 — Historical case dataset
+
+**Decision:** 4,000 synthetic historical cases, elective procedures only,
+spanning the 2 years prior to the waiting list snapshot date. Each
+surgeon assigned a personal speed multiplier (~Normal(1.0, 0.12)) applied
+on top of each procedure's population-level log-normal distribution, so
+the same surgeon is consistently faster or slower across their cases.
+
+**Rationale:** Trauma case durations follow different dynamics (patient
+condition, time pressure, case selection) and aren't relevant to training
+a model that will only ever be used to predict elective session packing,
+so trauma was excluded from the training data entirely — consistent with
+the waiting list's elective-only scope. The 12% surgeon speed spread isn't
+arbitrary; it's anchored to the real published gap between consultants
+and trainees found earlier on DHS and hemiarthroplasty (roughly 12-14% of
+mean duration). 4,000 cases across 10 surgeons over 2 years works out to
+roughly 300-500 cases per surgeon — plausible against Bartek et al.
+(2019), who reported around 2,600 cases for just two procedure types at
+one hospital over 3.25 years.
+
+**Methodological note:** The true surgeon speed factors used to generate
+this dataset are kept as ground truth for the simulation, not given to
+the duration-prediction model built later — it must estimate them from
+the noisy historical data, the same way a real predictive model would.
+This keeps the later comparison between predicted, oracle, and baseline
+scheduling conditions honest rather than circular.

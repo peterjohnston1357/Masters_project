@@ -272,3 +272,38 @@ avoids this, and also simplifies the traditional packing heuristic's
 session templates, since only two subspecialty groups ever need an
 All-day template rather than three.
 
+## 2026-09-13 - Traditional/baseline packing heuristic design
+
+**Decision:** Book patients into theatre sessions using a fixed per-session-type
+size-mix template (e.g. AM = 1 Medium + 2 Small), derived from per-subspecialty
+standard durations rather than computed live at booking time. Patients are booked
+from each surgeon's own priority-ordered queue (clinical priority category, then
+longest-waiting), with sessions searching the full queue for a matching size
+rather than stopping at the first miss.
+
+**Rationale:** Forms a deliberately "naive", convention-following baseline with
+no duration arithmetic at booking time, to contrast against the predictive,
+individualised-duration packing method. Searching the whole queue reflects how
+booking actually works in practice and avoids artificially depressing the
+baseline's own performance.
+
+## 2026-09-13 - Predictive packing method design, and deferral of gap-fill
+
+**Decision:** The predictive packer books using individualised predicted case
+durations (75th percentile from the staged backoff hierarchy, precomputed into
+data/generated/duration_predictions.csv) tracked in minutes against each
+session's bookable_minutes, rather than fixed size-category slots. Booking is a
+single forward pass through each surgeon's priority-ordered queue: a patient who
+doesn't fit is skipped (not removed) and scanning continues, matching standard
+first-fit bin-packing. Gap-filling (flagging a newly-arrived referral for
+insertion into an already-fully-packed session) is deliberately deferred out of
+this first version, pending evaluation of the basic first-fit result under the
+simulation harness with continuous referral replenishment.
+
+**Correction (self-caught):** An earlier version of this design stopped booking
+a session at the first patient who didn't fit, intended to isolate "prediction
+accuracy" from "gap-filling" effects. This was corrected after recognising it
+doesn't reflect how bin-packing or real theatre booking works, and would have
+artificially depressed the predictive condition's own performance, biasing the
+comparison against it.
+

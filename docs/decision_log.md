@@ -307,3 +307,24 @@ doesn't reflect how bin-packing or real theatre booking works, and would have
 artificially depressed the predictive condition's own performance, biasing the
 comparison against it.
 
+## 2026-09-13 - Consistent utilisation metric across packing methods
+
+**Decision:** Both the traditional and predictive packers now report utilisation
+using the same yardstick: each booked patient's precomputed p75 predicted
+duration (from duration_predictions.csv), summed against the session's
+bookable_minutes, regardless of how that packer selected patients. The
+traditional packer's own booking logic is unchanged (still fixed size-category
+templates, no duration arithmetic at selection time) - only the reported
+utilisation is now scored consistently, post-hoc, using the same predictions
+the predictive packer uses.
+
+**Rationale:** Removes a confound: previously the traditional packer's fill
+rate was measured in template slots and the predictive packer's in minutes, so
+any utilisation gap partly reflected the measurement method rather than
+genuine differences in session construction. Scoring both with the same
+predicted-duration yardstick isolates packing/selection method as the only
+varying factor. Confirmed the traditional packer can occasionally exceed 100%
+predicted utilisation under this scoring (1 of 58 sessions in the fortnight
+test), since it never checks duration when selecting patients - a genuine and
+expected finding about the fixed-template approach's limitations, not a
+calculation error.

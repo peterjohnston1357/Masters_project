@@ -16,6 +16,19 @@ category) - sessions never draw from another surgeon's patients, even
 within the same subspecialty, since both patients and sessions are
 already surgeon-specific in the underlying data.
 
+Booking itself never looks at predicted duration - only size category,
+via the fixed template. However, to allow a fair, like-for-like
+comparison against the predictive packer's utilisation figures, each
+session's utilisation is also scored AFTER booking using the same
+precomputed p75 duration predictions the predictive packer uses
+(data/generated/duration_predictions.csv), applied to whichever patients
+this heuristic actually selected. This isolates the packing/selection
+method as the only thing differing between the two conditions - both are
+scored with the same yardstick. Because this heuristic never checks
+duration when selecting patients, some sessions may come out over 100%
+predicted utilisation on this basis - that's a genuine, expected finding
+about the fixed-template approach's limitations, not an error.
+
 This module exposes pack_session() as the reusable per-session booking
 function; the simulation harness (built separately) will call it
 repeatedly across the repeating fortnightly schedule. main() here just
@@ -27,16 +40,14 @@ Run from the project root:
 
 import pandas as pd
 
+pd.set_option("display.width", 200)
+pd.set_option("display.max_columns", None)
+
 WAITING_LIST_PATH = "data/generated/waiting_list.csv"
 SCHEDULE_PATH = "data/generated/theatre_schedule.csv"
 PROCEDURES_PATH = "data/reference/procedures.csv"
+PREDICTIONS_PATH = "data/generated/duration_predictions.csv"
 
-# Fixed size-mix template per session period, derived once from
-# per-subspecialty standard durations (see decision log) rather than
-# computed live at booking time. All-day sessions are only ever booked
-# for subspecialty groups with a Large-category procedure (Hip-Knee-Leg,
-# Shoulder-Elbow-WristHand), per the theatre schedule generation, so no
-# separate Foot-Ankle All-day template is needed.
 SESSION_TEMPLATES = {
     "AM": ["Medium", "Small", "Small"],
     "PM": ["Medium", "Small", "Small"],
@@ -51,17 +62,19 @@ def load_data():
     waiting_list = pd.read_csv(WAITING_LIST_PATH)
     schedule = pd.read_csv(SCHEDULE_PATH)
     procedures = pd.read_csv(PROCEDURES_PATH).set_index("procedure_id")
+    predictions = pd.read_csv(PREDICTIONS_PATH)
 
     waiting_list["size_category"] = waiting_list["procedure_id"].map(procedures["size_category"])
     waiting_list["priority_rank"] = waiting_list["priority_category"].map(PRIORITY_RANK)
 
-    return waiting_list, schedule
+    predicted_lookup = (
+        predictions.set_index(["surgeon_id", "procedure_id"])["predicted_p75_min"].to_dict()
+    )
+
+    return waiting_list, schedule, predicted_lookup
 
 
 def build_surgeon_queues(waiting_list):
-    """One priority-ordered queue of patients per surgeon: most
-    clinically urgent first (lowest priority_rank), then longest-waiting
-    first among patients in the same priority category."""
     queues = {}
     for surgeon_id, group in waiting_list.groupby("assigned_surgeon_id"):
         ordered = group.sort_values(
@@ -72,9 +85,6 @@ def build_surgeon_queues(waiting_list):
 
 
 def sort_sessions(schedule):
-    """Chronological order - only affects the order a given surgeon's
-    own sessions are processed in, since sessions belonging to different
-    surgeons never draw from the same queue."""
     week_order = {w: i for i, w in enumerate(sorted(schedule["week"].unique()))}
     day_order = {d: i for i, d in enumerate(
         ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
@@ -91,13 +101,6 @@ def sort_sessions(schedule):
 
 
 def pack_session(session, queue):
-    """Fill one session's fixed template from a single surgeon's queue.
-    Returns (booked_patients, unfilled_slots), where unfilled_slots is a
-    list of (size_needed, reason) pairs - reason is "queue_exhausted" if
-    the surgeon has no patients left at all, or "no_matching_size" if
-    they have patients waiting but none of the needed size. Booked
-    patients are removed from the queue in place; an unfilled slot is
-    left empty rather than substituted with a different size."""
     template = SESSION_TEMPLATES[session["period"]]
 
     booked = []
@@ -120,7 +123,7 @@ def pack_session(session, queue):
 
 
 def main():
-    waiting_list, schedule = load_data()
+    waiting_list, schedule, predicted_lookup = load_data()
     queues = build_surgeon_queues(waiting_list)
     schedule = sort_sessions(schedule)
 
@@ -130,6 +133,12 @@ def main():
         queue = queues.setdefault(surgeon_id, [])
 
         booked, unfilled = pack_session(session, queue)
+
+        capacity_used_min = sum(
+            predicted_lookup[(surgeon_id, p["procedure_id"])] for p in booked
+        )
+        bookable_minutes = session["bookable_minutes"]
+        capacity_unused_min = bookable_minutes - capacity_used_min
 
         results.append({
             "session_id": session["session_id"],
@@ -143,6 +152,10 @@ def main():
             "unfilled_slots": len(unfilled),
             "unfilled_no_matching_size": sum(1 for _, r in unfilled if r == "no_matching_size"),
             "unfilled_queue_exhausted": sum(1 for _, r in unfilled if r == "queue_exhausted"),
+            "bookable_minutes": bookable_minutes,
+            "capacity_used_min": capacity_used_min,
+            "capacity_unused_min": capacity_unused_min,
+            "utilisation_pct": round(100 * capacity_used_min / bookable_minutes, 1),
             "booked_patient_ids": [p["patient_id"] for p in booked],
         })
 
@@ -151,6 +164,7 @@ def main():
     numeric_cols = [
         "patients_booked", "unfilled_slots",
         "unfilled_no_matching_size", "unfilled_queue_exhausted",
+        "capacity_used_min", "capacity_unused_min",
     ]
 
     print(f"Sessions processed: {len(results_df)}")
@@ -159,6 +173,13 @@ def main():
     print(f"Slots unfilled: {results_df['unfilled_slots'].sum()} "
           f"({results_df['unfilled_no_matching_size'].sum()} no matching size, "
           f"{results_df['unfilled_queue_exhausted'].sum()} queue exhausted)")
+    print()
+    print(f"Total bookable minutes: {results_df['bookable_minutes'].sum()}")
+    print(f"Total capacity used (predicted p75 basis): {results_df['capacity_used_min'].sum():.1f}")
+    print(f"Overall utilisation (predicted p75 basis): "
+          f"{100 * results_df['capacity_used_min'].sum() / results_df['bookable_minutes'].sum():.1f}%")
+    print(f"Sessions over 100% predicted utilisation: "
+          f"{(results_df['utilisation_pct'] > 100).sum()} of {len(results_df)}")
     print()
     print("By subspecialty group:")
     print(results_df.groupby("subspecialty_group")[numeric_cols].sum())

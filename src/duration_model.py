@@ -13,6 +13,7 @@ mean and standard deviation using the standard transform below.
 """
 
 import numpy as np
+from scipy.stats import norm
 
 
 def lognormal_params_from_mean_sd(mean, sd):
@@ -34,3 +35,13 @@ def sample_lognormal_durations(rng, mean, sd, size):
     """
     mu, sigma = lognormal_params_from_mean_sd(mean, sd)
     return rng.lognormal(mean=mu, sigma=sigma, size=size)
+
+
+def lognormal_percentile(mean, sd, percentile):
+    """
+    Return the value at the given percentile (0-1) of the log-normal
+    distribution implied by the given mean and standard deviation.
+    """
+    mu, sigma = lognormal_params_from_mean_sd(mean, sd)
+    z = norm.ppf(percentile)
+    return np.exp(mu + sigma * z)

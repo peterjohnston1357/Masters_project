@@ -8,6 +8,14 @@ surgeon across overlapping sessions on the same day. This is a template,
 not dated sessions - the later simulation applies it repeatedly over as
 many weeks as it needs to run.
 
+All-day sessions are only ever assigned to a subspecialty group that has
+at least one Large-category elective procedure (derived from
+procedures.csv), since a group without one - Foot-Ankle - has no genuine
+need for the extra capacity an all-day session provides. Without this,
+an all-day session assigned to Foot-Ankle would be structurally unable
+to use most of its bookable time, the same kind of capacity/demand
+mismatch corrected earlier for the surgeon roster split itself.
+
 Run from the project root:
     python src/data_generation/generate_theatre_schedule.py
 """
@@ -24,7 +32,18 @@ WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 WEEKS = [1, 2]
 
 SURGEONS_PATH = "data/reference/surgeons.csv"
+PROCEDURES_PATH = "data/reference/procedures.csv"
 OUTPUT_PATH = "data/generated/theatre_schedule.csv"
+
+REGION_TO_SUBSPECIALTY = {
+    "Hip": "Hip-Knee-Leg",
+    "Knee": "Hip-Knee-Leg",
+    "Leg": "Hip-Knee-Leg",
+    "Ankle-Foot": "Foot-Ankle",
+    "Shoulder": "Shoulder-Elbow-WristHand",
+    "Elbow": "Shoulder-Elbow-WristHand",
+    "Wrist-Hand": "Shoulder-Elbow-WristHand",
+}
 
 # Session duration in bookable minutes. All-day is 480 minutes total
 # (a full working day) less a 60-minute lunch break, leaving 420 minutes
@@ -65,6 +84,16 @@ def load_surgeons():
     return groups
 
 
+def load_all_day_eligible_groups():
+    """Subspecialty groups with at least one Large-category elective
+    procedure, and therefore a genuine need for All-day capacity."""
+    procedures = pd.read_csv(PROCEDURES_PATH)
+    elective = procedures[procedures["type"] == "Elective"].copy()
+    elective["subspecialty_group"] = elective["region"].map(REGION_TO_SUBSPECIALTY)
+    large = elective[elective["size_category"] == "Large"]
+    return set(large["subspecialty_group"].unique())
+
+
 def build_theatre_days(rng):
     """One row per (week, weekday, theatre), with a randomly chosen
     session pattern for that theatre-day."""
@@ -95,19 +124,27 @@ def expand_sessions(theatre_days):
     return sessions
 
 
-def assign_surgeons(sessions, surgeon_groups, rng):
+def assign_surgeons(sessions, surgeon_groups, all_day_eligible_groups, rng):
     """Assign a subspecialty-matched surgeon to each session, avoiding
     double-booking a surgeon across overlapping periods on the same day.
     Round-robin within each subspecialty group balances load across
-    surgeons over the fortnight."""
+    surgeons over the fortnight. All-day sessions are restricted to
+    groups in all_day_eligible_groups - a group with no Large procedures
+    (Foot-Ankle) never receives one."""
 
-    group_names = list(surgeon_groups.keys())
-    group_sizes = np.array([len(surgeon_groups[g]) for g in group_names], dtype=float)
-    group_probs = group_sizes / group_sizes.sum()
+    all_group_names = list(surgeon_groups.keys())
+    all_day_group_names = [g for g in all_group_names if g in all_day_eligible_groups]
+
+    def group_probs_for(names):
+        sizes = np.array([len(surgeon_groups[g]) for g in names], dtype=float)
+        return sizes / sizes.sum()
+
+    standard_group_names, standard_group_probs = all_group_names, group_probs_for(all_group_names)
+    all_day_group_probs = group_probs_for(all_day_group_names)
 
     # Shuffle each group's surgeon order once, then rotate through it.
-    queues = {g: list(rng.permutation(surgeon_groups[g])) for g in group_names}
-    queue_pos = {g: 0 for g in group_names}
+    queues = {g: list(rng.permutation(surgeon_groups[g])) for g in all_group_names}
+    queue_pos = {g: 0 for g in all_group_names}
 
     # Tracks which periods each surgeon is already committed to, per
     # (week, weekday).
@@ -119,6 +156,11 @@ def assign_surgeons(sessions, surgeon_groups, rng):
     for session in sessions:
         day_key = (session["week"], session["weekday"])
         occupied.setdefault(day_key, {})
+
+        if session["period"] == "ALL_DAY":
+            group_names, group_probs = all_day_group_names, all_day_group_probs
+        else:
+            group_names, group_probs = standard_group_names, standard_group_probs
 
         group = rng.choice(group_names, p=group_probs)
         queue = queues[group]
@@ -152,10 +194,11 @@ def assign_surgeons(sessions, surgeon_groups, rng):
 def main():
     rng = np.random.default_rng(RANDOM_SEED)
     surgeon_groups = load_surgeons()
+    all_day_eligible_groups = load_all_day_eligible_groups()
 
     theatre_days = build_theatre_days(rng)
     sessions = expand_sessions(theatre_days)
-    groups, surgeons = assign_surgeons(sessions, surgeon_groups, rng)
+    groups, surgeons = assign_surgeons(sessions, surgeon_groups, all_day_eligible_groups, rng)
 
     for session, group, surgeon in zip(sessions, groups, surgeons):
         session["subspecialty_group"] = group
@@ -174,8 +217,9 @@ def main():
 
     schedule.to_csv(OUTPUT_PATH, index=False)
     print(f"Wrote {len(schedule)} sessions to {OUTPUT_PATH}")
+    print(f"All-day eligible groups: {sorted(all_day_eligible_groups)}")
     print(schedule["period"].value_counts())
-    print(schedule.groupby("assigned_surgeon_id").size())
+    print(schedule.groupby(["subspecialty_group", "period"]).size())
 
 
 if __name__ == "__main__":

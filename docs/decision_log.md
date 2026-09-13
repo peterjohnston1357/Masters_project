@@ -227,5 +227,48 @@ Consolidating the weights into a single reference file, rather than two
 separately maintained script dictionaries, also removes the risk of the
 two datasets' case mixes drifting apart from each other over time.
 
+## 2026-09-13 - Surgeon tenure variation in historical data
 
+**Decision:** Added a `tenure_start_date` column to `surgeons.csv`, giving
+one surgeon per subspecialty group (SURG_05, SURG_07, SURG_10) a start
+date within the 2-year historical window - roughly 12, 11, and 9 months
+before the snapshot date respectively - rather than the full 2 years
+every other surgeon has. `generate_historical_cases.py` now only assigns
+a surgeon to a case dated on or after their tenure_start_date, rather
+than drawing from the full subspecialty pool regardless of case date.
+
+**Rationale:** Without this, every surgeon accumulated a full 2 years of
+historical cases regardless of how long they'd realistically been in
+post, which meant the duration predictor's staged backoff hierarchy
+(surgeon -> peer surgeons -> peer surgeons + size category -> population)
+never actually needed to fall back past its first level - every
+surgeon-procedure combination had ample data of its own. Introducing
+realistic tenure variation both makes the historical dataset more
+representative of a real department and genuinely exercises the backoff
+hierarchy, which is necessary to demonstrate that it works as intended
+rather than existing unused in the code. Result after this change: 75%
+of surgeon-procedure combinations resolve on the surgeon's own data,
+25% fall back to peer pooling - levels 3 and 4 of the hierarchy are not
+triggered by this dataset's volume, which is discussed separately.
+
+## 2026-09-13 - All-day session eligibility restricted by case mix
+
+**Decision:** All-day theatre sessions are now only ever assigned to a
+subspecialty group that has at least one Large-category elective
+procedure - derived directly from `procedures.csv` (any group with a
+Large-category row is eligible), not hardcoded. Hip-Knee-Leg and
+Shoulder-Elbow-Wrist-Hand qualify; Foot-Ankle, which has no Large
+procedures in its catalogue, is now excluded from All-day sessions
+entirely and only ever receives AM, PM, or Evening sessions.
+
+**Rationale:** The theatre schedule previously distributed All-day
+sessions across all three subspecialty groups regardless of case mix.
+Because Foot-Ankle has no Large procedures, an All-day session assigned
+to a Foot-Ankle surgeon could never use most of its 420 bookable minutes
+- a structural capacity/demand mismatch at the session-type level,
+identical in kind to the earlier surgeon-roster/case-mix mismatch, just
+one layer deeper. Tailoring session-type eligibility to actual case mix
+avoids this, and also simplifies the traditional packing heuristic's
+session templates, since only two subspecialty groups ever need an
+All-day template rather than three.
 

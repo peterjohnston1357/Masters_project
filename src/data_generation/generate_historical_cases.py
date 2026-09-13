@@ -15,6 +15,12 @@ the "ground truth" used to generate this data; the prediction model built
 later must estimate them from this noisy historical data, not be given
 them directly, to keep the evaluation honest.
 
+Surgeons also have a tenure_start_date (data/reference/surgeons.csv): a
+surgeon can only be assigned cases dated on or after they joined, so a
+recently-appointed surgeon ends up with genuinely less historical data
+than an established one, rather than every surgeon having a full 2 years
+of history regardless of realism.
+
 Run from the project root:
     python src/data_generation/generate_historical_cases.py
 """
@@ -42,15 +48,6 @@ PROCEDURES_PATH = "data/reference/procedures.csv"
 SURGEONS_PATH = "data/reference/surgeons.csv"
 OUTPUT_PATH = "data/generated/historical_cases.csv"
 
-# Same relative referral-volume weighting used for the waiting list, so
-# case volume in the historical data matches the same assumed case mix.
-PROCEDURE_WEIGHTS = {
-    "THR": 3, "TKR": 3, "KARTH": 3, "ACLR": 3,
-    "RTHR": 2, "RTKR": 2, "ANKARTH": 2, "HALLUX": 2, "SHARTH": 2,
-    "RCR": 2, "ELARTH": 2, "WRARTH": 2,
-    "ACHILLES": 1, "TSR": 1, "CTD": 1, "TFR": 1, "DUPUYTREN": 1,
-}
-
 REGION_TO_SUBSPECIALTY = {
     "Hip": "Hip-Knee-Leg",
     "Knee": "Hip-Knee-Leg",
@@ -74,6 +71,7 @@ SURGEON_SPEED_SD = 0.12
 def load_reference_tables():
     procedures = pd.read_csv(PROCEDURES_PATH)
     surgeons = pd.read_csv(SURGEONS_PATH)
+    surgeons["tenure_start_date"] = pd.to_datetime(surgeons["tenure_start_date"]).dt.date
     elective = procedures[procedures["type"] == "Elective"].copy()
     elective["subspecialty_group"] = elective["region"].map(REGION_TO_SUBSPECIALTY)
     return elective, surgeons
@@ -88,15 +86,23 @@ def assign_surgeon_speed_factors(surgeons, rng):
 
 def sample_procedures(elective, rng, n):
     ids = elective["procedure_id"].tolist()
-    weights = np.array([PROCEDURE_WEIGHTS[p] for p in ids], dtype=float)
-    weights /= weights.sum()
+    weights = elective["relative_annual_weight"].to_numpy(dtype=float)
+    weights = weights / weights.sum()
     return rng.choice(ids, size=n, p=weights)
 
 
-def assign_surgeons(subspecialty_groups, surgeons, rng):
+def sample_case_dates(rng, n):
+    days_ago = rng.integers(0, HISTORY_YEARS * 365, size=n)
+    return [SNAPSHOT_DATE - timedelta(days=int(d)) for d in days_ago]
+
+
+def assign_surgeons(subspecialty_groups, case_dates, surgeons, rng):
     assigned = []
-    for group in subspecialty_groups:
-        pool = surgeons[surgeons["subspecialty_group"] == group]["surgeon_id"].tolist()
+    for group, case_date in zip(subspecialty_groups, case_dates):
+        pool = surgeons[
+            (surgeons["subspecialty_group"] == group)
+            & (surgeons["tenure_start_date"] <= case_date)
+        ]["surgeon_id"].tolist()
         assigned.append(rng.choice(pool))
     return assigned
 
@@ -110,7 +116,8 @@ def main():
     proc_lookup = elective.set_index("procedure_id")
 
     subspecialty_groups = [proc_lookup.loc[p, "subspecialty_group"] for p in procedure_ids]
-    surgeon_ids = assign_surgeons(subspecialty_groups, surgeons, rng)
+    case_dates = sample_case_dates(rng, N_CASES)
+    surgeon_ids = assign_surgeons(subspecialty_groups, case_dates, surgeons, rng)
 
     # Base duration drawn from each procedure's population-level
     # log-normal distribution, one case at a time (mean/SD differ by
@@ -128,11 +135,6 @@ def main():
     surgeon_multipliers = np.array([speed_factors[sid] for sid in surgeon_ids])
     actual_durations = base_durations * surgeon_multipliers
 
-    # Case dates spread uniformly across the 2 years prior to the
-    # snapshot date.
-    days_ago = rng.integers(0, HISTORY_YEARS * 365, size=N_CASES)
-    case_dates = [SNAPSHOT_DATE - timedelta(days=int(d)) for d in days_ago]
-
     historical_cases = pd.DataFrame({
         "case_id": [f"H{str(i+1).zfill(5)}" for i in range(N_CASES)],
         "procedure_id": procedure_ids,
@@ -149,6 +151,7 @@ def main():
     historical_cases.to_csv(OUTPUT_PATH, index=False)
     print(f"Wrote {len(historical_cases)} historical cases to {OUTPUT_PATH}")
     print(historical_cases.groupby("surgeon_id")["actual_duration_min"].mean())
+    print(historical_cases.groupby("surgeon_id")["case_id"].count())
 
 
 if __name__ == "__main__":

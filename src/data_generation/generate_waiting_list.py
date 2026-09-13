@@ -29,16 +29,6 @@ PROCEDURES_PATH = "data/reference/procedures.csv"
 SURGEONS_PATH = "data/reference/surgeons.csv"
 OUTPUT_PATH = "data/generated/waiting_list.csv"
 
-# Relative referral-volume weight per elective procedure (3 = high,
-# 2 = medium, 1 = low). A judgement call based on typical T&O elective
-# case-mix, not a cited figure - documented as such in the report.
-PROCEDURE_WEIGHTS = {
-    "THR": 3, "TKR": 3, "KARTH": 3, "ACLR": 3,
-    "RTHR": 2, "RTKR": 2, "ANKARTH": 2, "HALLUX": 2, "SHARTH": 2,
-    "RCR": 2, "ELARTH": 2, "WRARTH": 2,
-    "ACHILLES": 1, "TSR": 1, "CTD": 1, "TFR": 1, "DUPUYTREN": 1,
-}
-
 # Maps each procedure region to one of the three surgeon subspecialty
 # groups agreed for the roster.
 REGION_TO_SUBSPECIALTY = {
@@ -90,8 +80,8 @@ def load_reference_tables():
 
 def sample_procedures(elective, rng, n):
     ids = elective["procedure_id"].tolist()
-    weights = np.array([PROCEDURE_WEIGHTS[p] for p in ids], dtype=float)
-    weights /= weights.sum()
+    weights = elective["relative_annual_weight"].to_numpy(dtype=float)
+    weights = weights / weights.sum()
     return rng.choice(ids, size=n, p=weights)
 
 

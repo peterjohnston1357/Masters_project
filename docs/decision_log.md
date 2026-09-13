@@ -188,3 +188,44 @@ waiting list, historical cases, and theatre schedule against the
 corrected roster. Verified afterwards: the regenerated waiting list's
 actual subspecialty split (49.3%/14.7%/36.0%) lines up closely with the
 target demand proportions.
+
+## 2026-09-13 - Procedure referral-weighting revision
+
+**Decision:** Replaced the initial High/Medium/Low judgement-call tier
+system for elective procedure referral frequency with individual
+per-procedure weights, stored as a `relative_annual_weight` column in
+`data/reference/procedures.csv` and read directly by both
+`generate_waiting_list.py` and `generate_historical_cases.py`, replacing
+two separately hardcoded `PROCEDURE_WEIGHTS` dictionaries that had
+previously duplicated the same values across both scripts. Weight values
+are each procedure's estimated annual UK/England case volume, divided by
+1,000 for readability - only the relative proportions between procedures
+affect the generated case mix, so this scaling has no effect on
+sampling. The 8 trauma procedures were also removed from
+`procedures.csv` at the same time, having become unused once the
+waiting list and historical dataset were scoped to elective procedures
+only.
+
+**Rationale:** The original tier weighting was an unresearched
+assumption, and reviewing it against real data showed several
+procedures were meaningfully mis-weighted - e.g. carpal tunnel
+decompression and hallux valgus correction were under-weighted relative
+to their true national volume, while ACL reconstruction and revision
+joint replacement were over-weighted. Individual weights, each anchored
+to a real published annual volume figure where one could be found
+(national registries - National Joint Registry, National Ligament
+Registry - and peer-reviewed Hospital Episode Statistics studies),
+better reflect actual referral demand and are also more consistent with
+how case-mix planning is described in the literature (a continuous
+empirical frequency distribution, not discrete bands). For a handful of
+lower-volume day-case procedures, no dedicated national annual figure
+could be found despite searching; those weights are reasoned estimates
+informed by comparable published figures and consistent descriptions of
+relative volume in the literature, rather than directly-cited data, and
+are flagged here as an assumption rather than an exact statistic.
+Consolidating the weights into a single reference file, rather than two
+separately maintained script dictionaries, also removes the risk of the
+two datasets' case mixes drifting apart from each other over time.
+
+
+

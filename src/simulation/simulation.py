@@ -192,12 +192,17 @@ def record_session_result(session, booked, sim_week, predicted_lookup, condition
 def record_patient_outcomes(booked, sim_week, condition):
     """
     Build one row per booked patient recording their wait-to-treatment.
-    current_wait_weeks was set on each patient dict just before booking
-    (see refresh_and_sort_queues), so it already reflects their true
-    wait at the point they were actually treated, not just when they
-    joined the queue. Used only by the RTT-compliance analysis (see
-    run_rtt_replications()) - the regular utilisation/overrun analysis
-    in run_replications() doesn't use this.
+
+    wait_weeks_at_treatment is computed directly from base_wait_weeks,
+    arrival_week, and the sim_week this session actually executes in -
+    not read from the patient's current_wait_weeks field, which is only
+    refreshed while a patient is still in a queue (see
+    refresh_and_sort_queues) and would be stale for any first-fit
+    condition (C1-C4): those sessions are planned LEAD_TIME_WEEKS ahead
+    of when they run, so a patient's current_wait_weeks is frozen at
+    whatever it was at planning time, understating their true wait at
+    actual treatment by up to LEAD_TIME_WEEKS. Recomputing directly from
+    the execution week avoids this.
     """
     return [
         {
@@ -205,7 +210,7 @@ def record_patient_outcomes(booked, sim_week, condition):
             "condition": condition,
             "arrival_week": p["arrival_week"],
             "sim_week_treated": sim_week,
-            "wait_weeks_at_treatment": p["current_wait_weeks"],
+            "wait_weeks_at_treatment": p["base_wait_weeks"] + (sim_week - p["arrival_week"]),
             "treated": True,
         }
         for p in booked
@@ -697,6 +702,103 @@ def run_rtt_replications(
     print(f"Saved {len(rtt_replications)} rows to {output_path}")
 
     return rtt_replications
+
+
+def build_booking_order_diagnostic(
+    n_reps=2,
+    base_seed=1,
+    n_weeks=26,
+    output_path="data/generated/booking_order_diagnostic.csv",
+):
+    """
+    Quantifies how far the first-fit skip mechanism actually reorders
+    booking relative to strict priority order, for the predicted,
+    no-gap-fill condition. For every booked patient, records their
+    position in their surgeon's priority-ordered queue at the moment
+    their session was planned (0 = first in queue), alongside their
+    size_category, priority_category, and the queue's total depth at
+    that moment - a booked patient at position 0 was reached
+    immediately; a booked patient at position 20 was booked ahead of 20
+    other, more urgent or longer-waiting, patients whose procedures
+    didn't fit the session's remaining capacity.
+
+    This exists because a suspiciously low median wait-to-treatment for
+    new arrivals (see the RTT-compliance decision log entry) raised the
+    question of whether priority order was actually being respected.
+    Confirmed: it is, in the sense that the queue is scanned in priority
+    order, but a lower-priority patient whose case fits leftover
+    capacity is routinely booked ahead of a higher-priority one whose
+    case doesn't - a deliberate, documented characteristic of the
+    skip-based first-fit design (see the predictive packing method
+    design entry), not a bug, but worth quantifying rather than just
+    asserting.
+
+    Uses fewer replications than the other analyses (n_reps=2 by
+    default) since this is a diagnostic of algorithm behaviour, not a
+    condition comparison needing statistical power across seeds - the
+    pattern is already clear and consistent at this scale.
+
+    Returns the diagnostic DataFrame; also saves it to output_path.
+    """
+    schedule, procedures, predicted_lookup = load_reference_data()
+    rows = []
+
+    for i in range(n_reps):
+        seed = base_seed + i
+        population = prepare_population(generate_population(seed, n_weeks=n_weeks), procedures)
+        queues = initialize_queues(population)
+        refresh_and_sort_queues(queues, 0)
+        pending = {}
+
+        def plan_week(plan_week_num):
+            if plan_week_num > n_weeks:
+                return
+            for _, session in week_sessions(schedule, plan_week_num).iterrows():
+                surgeon_id = session["assigned_surgeon_id"]
+                queue = queues.setdefault(surgeon_id, [])
+                duration_fn = make_predicted_duration_fn(surgeon_id, predicted_lookup)
+
+                # Snapshot queue order/composition before the scan - first_fit_scan
+                # mutates queue in place, so this has to be captured first.
+                pre_scan = [
+                    (p["patient_id"], p["size_category"], p["priority_category"],
+                     p["current_wait_weeks"], p["arrival_week"])
+                    for p in queue
+                ]
+
+                booked, _ = first_fit_scan(queue, session["bookable_minutes"], duration_fn)
+                booked_ids = {p["patient_id"] for p in booked}
+
+                for idx, (pid, size_cat, prio, wait, arrival_week) in enumerate(pre_scan):
+                    if pid in booked_ids:
+                        rows.append({
+                            "seed": seed,
+                            "plan_week": plan_week_num,
+                            "queue_index": idx,
+                            "queue_depth_at_scan": len(pre_scan),
+                            "size_category": size_cat,
+                            "priority_category": prio,
+                            "wait_at_scan": wait,
+                            "arrival_week": arrival_week,
+                        })
+
+                pending.setdefault(plan_week_num, []).append((session, booked))
+
+        for w in range(1, LEAD_TIME_WEEKS + 1):
+            plan_week(w)
+        for sim_week in range(1, n_weeks + 1):
+            release_new_arrivals(queues, population, sim_week)
+            refresh_and_sort_queues(queues, sim_week)
+            pending.pop(sim_week, None)  # executed sessions aren't needed for this diagnostic
+            plan_week(sim_week + LEAD_TIME_WEEKS)
+
+        print(f"Booking-order diagnostic replication {i + 1}/{n_reps} (seed={seed}) complete.")
+
+    diagnostic = pd.DataFrame(rows)
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    diagnostic.to_csv(output_path, index=False)
+    print(f"Saved {len(diagnostic)} rows to {output_path}")
+    return diagnostic
 
 
 def main():

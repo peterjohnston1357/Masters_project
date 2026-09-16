@@ -537,3 +537,169 @@ quintiles, matching the equally uniform size_category breakdown, and
 confirming the original collapse was an artifact of the check's design
 rather than a genuine predictor failure. No changes were made to
 duration_predictor.py as a result.
+
+## 2026-09-16 - RTT-compliance analysis at an extended horizon
+
+### Motivation
+
+The condition comparisons up to this point measure utilisation and
+throughput over the 12-week simulation window, but neither of those is
+what the NHS constitution actually measures. The real question is
+whether the improvements from predictive/oracle scheduling translate
+into more patients being treated within the 18-week RTT target. That
+needed patient-level wait tracking that didn't exist yet, and a longer
+run than 12 weeks, since very few patients can complete an 18-week
+pathway inside a 12-week simulation.
+
+### Design decisions
+
+I didn't want to touch the existing 12-week results, since those are
+already committed and referenced in the write-up, so I parameterised
+`n_weeks` through `generate_population` and the `run_traditional`/
+`run_first_fit` functions in `simulation.py`, defaulting to the
+existing `N_WEEKS` constant so nothing about the current behaviour
+changes unless a caller asks for a different horizon. A new function,
+`run_rtt_replications`, runs all five conditions at a 26-week horizon
+specifically for this analysis, keeping it entirely separate from the
+main replication path.
+
+26 weeks was chosen as 18 (the RTT target) plus enough runway for
+patients referred early in the simulation to actually complete their
+pathway and be measured, rather than being cut off mid-wait.
+
+I also split the results into two cohorts rather than reporting one
+blended figure:
+
+- the initial 375-patient backlog present at simulation start, and
+- new arrivals referred in weeks 1-8 (i.e. arrival_week <= n_weeks -
+  18, so every patient in this cohort has had the full 18 weeks to
+  either be treated or breach before the simulation horizon ends -
+  this avoids right-censoring newer arrivals who simply haven't had
+  time to breach yet).
+
+This matters because 39.2% of the initial backlog had already
+breached 18 weeks at the snapshot date, before any scheduling
+decisions in the simulation could affect them. That puts a hard
+ceiling of 60.8% on achievable compliance for that cohort regardless
+of how good the scheduling is, so blending it with the new-arrivals
+cohort would have understated the real effect of predictive
+scheduling on patients whose fate the scheduling algorithm can
+actually influence from referral onward.
+
+### Bug caught during this work: stale wait times for first-fit conditions
+
+Once I had the first version of `run_rtt_replications` working, the
+new-arrivals cohort was showing a near-zero median wait under every
+first-fit condition (C1-C4), which didn't make sense given that
+patients are meant to be booked in priority + wait-time order. If
+that were genuinely true it would mean any patient arriving on the
+list is effectively treated as top priority, which isn't what the
+booking logic is supposed to do.
+
+The cause was in how `record_patient_outcomes` calculated each
+patient's wait at treatment: it was reading `current_wait_weeks`,
+which is a field that's only kept up to date while a patient is still
+sitting in a queue (refreshed in `refresh_and_sort_queues`). For the
+first-fit conditions, sessions are planned `LEAD_TIME_WEEKS` (2 weeks)
+ahead of when they actually run, so a patient is pulled out of the
+queue at planning time - two weeks before their session executes. The
+field was frozen at whatever value it held at that planning moment,
+so every recorded wait was understating the true wait to treatment by
+up to two weeks.
+
+Fixed by calculating `wait_weeks_at_treatment` directly from
+`base_wait_weeks + (sim_week - arrival_week)`, using the actual
+execution week rather than the stale queue field. After the fix, the
+median wait for new arrivals under every first-fit condition came out
+to exactly 2.0 weeks - matching `LEAD_TIME_WEEKS` precisely, which is
+the expected result for patients who get booked as soon as they're
+eligible, and confirms the fix is correct.
+
+### Results
+
+With the corrected wait calculation, 18-week RTT compliance
+(`pct_within_target`) across the two cohorts:
+
+Initial backlog cohort (ceiling 60.8% due to pre-existing breaches):
+- C0 (baseline): 29.55%
+- C1 (predicted, no gap-fill): 33.11%
+- C3 (oracle, no gap-fill): 40.24%
+- C4 (oracle, gap-fill): 40.37%
+
+New-arrivals-eligible cohort (weeks 1-8 referrals):
+- C0 (baseline): 59.09%
+- C1 (predicted, no gap-fill): 64.60%
+- C3 (oracle, no gap-fill): 79.96%
+- C4 (oracle, gap-fill): 80.27%
+
+Paired statistical testing (paired t-test, Wilcoxon signed-rank,
+95% CI, Cohen's d, computed per-seed across 20 replications), using
+the same `paired_stats`/`plot_comparison` methodology already used
+for the utilisation and duration-accuracy comparisons, confirms the
+major differences are statistically significant with large effect
+sizes: baseline vs predicted, predicted vs oracle, and baseline vs
+best-case all show strongly significant improvements in RTT
+compliance for both cohorts.
+
+The gap-fill comparisons (C1 vs C2, C3 vs C4) are smaller. For the
+new-arrivals cohort, gap-fill's effect on `pct_within_target` is
+still statistically significant (p = 0.024, Cohen's d = 0.55) but
+tiny in absolute terms - about 0.1 percentage points (79.96% to
+80.27%). This is consistent with what the utilisation analysis
+already showed: gap-fill has a real, detectable effect, just a modest
+one on this particular outcome measure.
+
+Full results and both comparison plots saved to
+`data/generated/rtt_comparison_results.csv`,
+`notebooks/figures/rtt_comparisons_initial.png` and
+`notebooks/figures/rtt_comparisons_new_arrivals_eligible.png`.
+
+### Follow-up investigation: are new arrivals effectively jumping the queue?
+
+Given that new arrivals end up waiting almost exactly `LEAD_TIME_WEEKS`
+under first-fit conditions, I wanted to check whether that meant new
+arrivals were effectively being treated as top priority regardless of
+their actual clinical priority category - which would be a problem,
+since patients are supposed to be booked by priority and wait time,
+not simply by whoever turns up.
+
+I built `build_booking_order_diagnostic` to record each booked
+patient's position in the priority-ordered queue at the moment they
+were scanned for a session, alongside their procedure size category
+and priority category. The results show a genuine and fairly large
+effect, but it's driven by procedure size fit, not by new arrivals
+skipping the queue on priority grounds:
+
+- mean queue position at booking by size category: Large 0.5, Medium
+  1.2, Small 23.3
+- mean queue position at booking by priority category: P2 0.8, P3
+  4.5, P4 22.5
+- 26.3% of new arrivals were booked at queue position 0 (i.e.
+  immediately, at the front of the queue)
+- across all new arrivals: mean queue position at booking 11.6,
+  median 1
+
+This is exactly what the first-fit "skip if it doesn't fit, keep
+scanning" booking logic is designed to do: if the next patient in
+priority order needs more time than is left in a session, the
+algorithm moves on and books the next patient who does fit, rather
+than leaving that remaining capacity unused. Small procedures (and,
+correlated with that, lower-priority P4 patients, who are more likely
+to have a small/routine procedure) get pulled from much further down
+the queue because they're the ones that fit into whatever gaps are
+left after higher-priority, larger cases have been booked first.
+
+This matches how theatre lists are actually run in practice - a
+session is never left half-empty because the next most urgent patient
+on paper doesn't fit the remaining time, when there's another patient
+whose procedure does fit and makes better use of the capacity. So
+this is the algorithm behaving correctly, not a bug, and no change was
+made to the booking logic itself. The diagnostic is now proper,
+reusable code (`build_booking_order_diagnostic` in `simulation.py`)
+rather than a one-off check, so this finding can be reproduced and
+re-verified going forward.
+
+Diagnostic output saved to
+`data/generated/booking_order_diagnostic.csv`; summary tables and the
+queue-position boxplot are in the notebook and saved to
+`notebooks/figures/booking_order_by_size.png`.

@@ -9,27 +9,19 @@ tracked in minutes against each session's bookable_minutes, not in slot
 counts.
 
 Booking is a single forward pass through each surgeon's priority-ordered
-queue per session (clinical priority category first, then longest-waiting
-within that category) - this queue-building and session-ordering logic
-lives in common.py, shared with the traditional packer and the simulation
-harness. The first not-yet-booked patient is checked against the time
-remaining in the session; if their predicted duration fits, they are
-booked and the remaining capacity is reduced; if not, they are left in
-the queue (not removed) and the scan continues to the next patient. This
-matches standard first-fit bin-packing and mirrors how the traditional
-packer already behaves - no session is left short just because the very
-next patient in the queue didn't fit.
+queue per session, via common.py's first_fit_scan() - shared with the
+gap-fill mechanism and the simulation harness so there's one canonical
+first-fit implementation. pack_session() builds a duration_fn(patient)
+callable from the predicted-duration lookup and hands it to
+first_fit_scan(), so the same booking algorithm also serves the oracle
+(true-duration) condition used by the simulation harness, just with a
+different duration_fn - without duplicating the algorithm itself.
 
-Gap-filling (inserting a patient who joins the waiting list after a session
-is already packed) is deliberately not implemented here yet - see the
-decision log. This module will be extended, or left as-is, once the basic
-first-fit result has been evaluated under the simulation harness.
-
-This module exposes pack_session() as the reusable per-session booking
-function; the simulation harness calls it repeatedly across the repeating
-fortnightly schedule. main() here just runs it once across a single
-fortnight as a sanity check, in the same style as traditional_packer.py,
-so the two can be compared directly.
+Gap-filling (inserting a patient who joins the waiting list after a
+session is already packed, into leftover capacity, without displacing
+anyone already booked) is a separate mechanism, built in gap_fill.py, and
+only applies to the data-driven scheduling conditions in the simulation
+harness, not to this module's own standalone sanity-check run.
 
 Run from the project root:
     python src/packing/predictive_packer.py
@@ -37,7 +29,7 @@ Run from the project root:
 
 import pandas as pd
 
-from common import PRIORITY_RANK, build_surgeon_queues, sort_sessions
+from common import PRIORITY_RANK, build_surgeon_queues, sort_sessions, first_fit_scan
 
 WAITING_LIST_PATH = "data/generated/waiting_list.csv"
 SCHEDULE_PATH = "data/generated/theatre_schedule.csv"
@@ -58,14 +50,8 @@ def load_data():
     return waiting_list, schedule, predicted_lookup
 
 
-def pack_session(session, queue, predicted_lookup):
-    surgeon_id = session["assigned_surgeon_id"]
-    remaining_capacity = session["bookable_minutes"]
-
-    booked = []
-    still_waiting = []
-
-    for patient in queue:
+def make_predicted_duration_fn(surgeon_id, predicted_lookup):
+    def duration_fn(patient):
         key = (surgeon_id, patient["procedure_id"])
         predicted_duration = predicted_lookup.get(key)
         if predicted_duration is None:
@@ -73,16 +59,14 @@ def pack_session(session, queue, predicted_lookup):
                 f"No duration prediction for surgeon {surgeon_id}, "
                 f"procedure {patient['procedure_id']}"
             )
+        return predicted_duration
+    return duration_fn
 
-        if predicted_duration <= remaining_capacity:
-            booked.append(patient)
-            remaining_capacity -= predicted_duration
-        else:
-            still_waiting.append(patient)
 
-    queue[:] = still_waiting
-
-    return booked, remaining_capacity
+def pack_session(session, queue, predicted_lookup):
+    surgeon_id = session["assigned_surgeon_id"]
+    duration_fn = make_predicted_duration_fn(surgeon_id, predicted_lookup)
+    return first_fit_scan(queue, session["bookable_minutes"], duration_fn)
 
 
 def main():

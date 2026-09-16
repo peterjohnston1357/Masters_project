@@ -391,3 +391,28 @@ approach to duplicated logic. Confirmed the refactor is behaviour-preserving:
 both packers produce identical output to before the change (137 patients/
 56.0% utilisation traditional, 179 patients/83.7% utilisation predictive).
 
+## 2026-09-16 - Extracted first-fit algorithm to common.py; added gap-fill mechanism
+
+**Decision:** The core duration-aware booking algorithm (single forward pass,
+skip-not-remove, capacity-based) is now a single function, first_fit_scan(),
+in common.py, taking an explicit capacity and a duration_fn(patient)
+callable rather than reading a session row directly. predictive_packer.py's
+pack_session() is now a thin wrapper around it. A new gap_fill.py adds
+apply_gap_fill(), which reuses first_fit_scan() for a second pass over a
+session's queue, starting from whatever capacity was left unused by the
+original planning pass.
+
+**Rationale:** Working through the proposal's gap-fill definition ("spare
+capacity in already-populated sessions, never displacing a more urgent
+patient") showed gap-fill only means something once there's a booking lead
+time between when a session is planned and when it runs - without that gap,
+first-fit's exhaustive queue scan would already have booked anyone who
+could fit, leaving nothing for gap-fill to find. It also showed gap-fill is
+mechanically the same first-fit algorithm run a second time, later, against
+leftover capacity - re-scanning the current queue at execution time is
+behaviourally identical to explicitly tracking "who arrived since planning",
+since anyone present at planning time who didn't fit still won't fit later
+(capacity only shrinks). Extracting the shared algorithm avoids a third
+duplicate implementation. Confirmed behaviour-preserving: predictive_packer.py
+still produces 179 patients/83.7% utilisation, identical to before.
+

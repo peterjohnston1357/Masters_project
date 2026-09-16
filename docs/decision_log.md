@@ -349,3 +349,45 @@ between the historical period and the simulated future. Confirmed safe to
 add: the script uses a fixed random seed and the speed factors are the first
 thing drawn from the RNG, so persisting them doesn't change the
 previously-generated and already-validated historical_cases.csv content.
+
+## 2026-09-16 - Simulation population generator: common random numbers across conditions
+
+**Decision:** A new src/simulation/population.py generates, for a given seed,
+the full patient population for one simulation replication: the initial
+375-patient snapshot plus 12 weeks of Poisson-distributed new referral
+arrivals (~90/week department-wide, split across procedures by
+relative_annual_weight), with every patient - initial and new - carrying a
+pre-sampled "true" outcome duration (population log-normal x surgeon's true
+speed factor, the same generative process as the historical dataset). All
+scheduling conditions in the simulation harness run against the same
+population for a given seed; different seeds produce independent
+populations for the repeated-runs statistical comparison.
+
+**Rationale:** For the traditional/predictive/oracle comparison to be valid,
+every condition needs to face an identical incoming patient stream and
+identical true outcomes - otherwise a result could partly reflect one
+condition getting a luckier population rather than a genuine effect of the
+scheduling method (the "common random numbers" simulation technique).
+Pre-sampling true durations at population-generation time, rather than only
+at booking time, also means the oracle condition and the eventual
+prediction-accuracy/overrun analysis both draw on the same fixed ground
+truth regardless of which condition ends up booking each patient. Verified
+with a demo run (seed=100): 1,491 total patients (375 initial + 1,116 new
+arrivals over 12 weeks, averaging ~93/week with expected Poisson
+variation), duration distribution right-skewed and plausible (range
+6.5-314.2 min, median 81.3).
+
+## 2026-09-16 - Extracted shared queue/session-ordering logic to common.py
+
+**Decision:** build_surgeon_queues(), sort_sessions(), and PRIORITY_RANK,
+previously duplicated identically in both traditional_packer.py and
+predictive_packer.py, are now defined once in a new src/packing/common.py,
+imported by both.
+
+**Rationale:** The simulation harness would otherwise have become a third
+copy of exactly the same logic. Extracting it now, before that happens,
+keeps a single source of truth consistent with the project's existing
+approach to duplicated logic. Confirmed the refactor is behaviour-preserving:
+both packers produce identical output to before the change (137 patients/
+56.0% utilisation traditional, 179 patients/83.7% utilisation predictive).
+

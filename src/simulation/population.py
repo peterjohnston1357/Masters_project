@@ -66,6 +66,14 @@ REGION_TO_SUBSPECIALTY = {
 
 
 def load_reference_tables():
+    """
+    Loads the four reference tables needed to generate a population: the
+    initial waiting list snapshot, the elective procedure catalogue
+    (subspecialty-tagged, same region mapping used throughout the
+    project), the surgeon roster split into per-subspecialty pools, and
+    each surgeon's true speed factor (ground truth, used only here to
+    sample outcomes - never exposed to the prediction model).
+    """
     waiting_list = pd.read_csv(WAITING_LIST_PATH)
     procedures = pd.read_csv(PROCEDURES_PATH)
     surgeons = pd.read_csv(SURGEONS_PATH)
@@ -84,12 +92,29 @@ def load_reference_tables():
 
 
 def sample_true_duration(rng, procedure_id, surgeon_id, proc_lookup, speed_factors):
+    """
+    Draws one "true" outcome duration for a single case: a base duration
+    from the procedure's population-level log-normal distribution,
+    scaled by the assigned surgeon's personal speed factor - the same
+    generative process used to build the historical dataset, so the
+    simulated future stays internally consistent with the surgeon speeds
+    the historical data (and therefore the trained predictor) reflects.
+    """
     row = proc_lookup.loc[procedure_id]
     base = sample_lognormal_durations(rng, row["mean_duration_min"], row["sd_duration_min"], size=1)[0]
     return base * speed_factors[surgeon_id]
 
 
 def build_initial_patients(waiting_list, proc_lookup, speed_factors, rng):
+    """
+    Converts the 375-patient waiting list snapshot into the population's
+    starting patients, each given a pre-sampled true duration and
+    arrival_week=0 (present from the start of the simulation, unlike a
+    new referral arriving partway through - see
+    sample_new_arrivals_for_week). base_wait_weeks carries over each
+    patient's already-accrued wait from the snapshot, so their effective
+    wait is still correct once the simulation clock starts moving.
+    """
     patients = []
     for _, row in waiting_list.iterrows():
         true_duration = sample_true_duration(
@@ -108,6 +133,27 @@ def build_initial_patients(waiting_list, proc_lookup, speed_factors, rng):
 
 
 def sample_new_arrivals_for_week(week, elective, proc_lookup, surgeon_pools, speed_factors, rng, next_id):
+    """
+    Generates one week's worth of new referrals. The count itself is
+    Poisson-distributed around WEEKLY_REFERRAL_RATE rather than fixed, so
+    referral volume varies week to week the way real demand does. Each
+    new patient's procedure is drawn using the same
+    relative_annual_weight proportions as the original waiting list, so
+    the referral mix stays consistent with the rest of the project; their
+    surgeon is then chosen uniformly at random from that procedure's
+    subspecialty pool - unlike the historical dataset, no tenure
+    restriction applies here, since every current surgeon is already
+    active and eligible for any future date. New patients start with
+    base_wait_weeks=0 and arrival_week=week, so their wait always counts
+    from when they actually joined the queue, not from the simulation's
+    start.
+
+    next_id is the running patient counter passed in from
+    generate_population(), so every new patient across every week of a
+    replication gets a unique, sequential SIM##### ID - threaded through
+    as a plain integer rather than tracked as module state, since each
+    replication (seed) needs its own independent ID sequence.
+    """
     n_new = rng.poisson(WEEKLY_REFERRAL_RATE)
 
     ids = elective["procedure_id"].tolist()
@@ -140,6 +186,17 @@ def sample_new_arrivals_for_week(week, elective, proc_lookup, surgeon_pools, spe
 
 
 def generate_population(seed):
+    """
+    Builds one full replication's population for the given seed: the 375
+    initial patients plus N_WEEKS of new arrivals, all drawn from a
+    single seeded RNG so the whole sequence - initial durations, then
+    each week's arrivals in order - is fully reproducible from the seed
+    alone. Different seeds produce independent populations; this is what
+    run_replications() (src/simulation/simulation.py) varies across
+    replications while holding the theatre schedule and duration
+    predictor fixed, so every scheduling condition within a replication
+    still sees the identical population (see module docstring).
+    """
     rng = np.random.default_rng(seed)
     waiting_list, elective, proc_lookup, surgeon_pools, speed_factors = load_reference_tables()
 
@@ -156,6 +213,14 @@ def generate_population(seed):
 
 
 def main():
+    """
+    Demo/sanity-check run: generates one population (seed=100), prints
+    summary stats (arrival counts by week, true-duration distribution)
+    to eyeball plausibility, and saves it to
+    data/generated/simulation_population_demo.csv for inspection. Not
+    used by the harness itself, which calls generate_population()
+    directly per replication.
+    """
     DEMO_SEED = 100
     population = generate_population(DEMO_SEED)
 

@@ -61,6 +61,11 @@ REGRESSION_CONDITIONS = {"C0: Traditional", "C1: Predicted, no gap-fill", "C2: P
 
 
 def load_reference_data():
+    """
+    Load the theatre schedule, procedure reference data, and the trained
+    duration-prediction lookup (predicted p75 minutes, keyed by
+    (surgeon_id, procedure_id)) used by every condition.
+    """
     schedule = pd.read_csv(SCHEDULE_PATH)
     procedures = pd.read_csv(PROCEDURES_PATH).set_index("procedure_id")
     predictions = pd.read_csv(PREDICTIONS_PATH)
@@ -71,6 +76,11 @@ def load_reference_data():
 
 
 def prepare_population(population, procedures):
+    """
+    Attach priority_rank (numeric, derived from priority_category) and
+    size_category (joined in from procedures.csv) to a raw generated
+    population, ready for queue sorting and packing.
+    """
     population = population.copy()
     population["priority_rank"] = population["priority_category"].map(PRIORITY_RANK)
     population["size_category"] = population["procedure_id"].map(procedures["size_category"])
@@ -78,6 +88,7 @@ def prepare_population(population, procedures):
 
 
 def initialize_queues(population):
+    """Build each surgeon's initial queue from patients already on the waiting list at week 0, before the simulation's main loop starts."""
     initial = population[population["arrival_week"] == 0]
     queues = {}
     for surgeon_id, group in initial.groupby("assigned_surgeon_id"):
@@ -86,12 +97,19 @@ def initialize_queues(population):
 
 
 def release_new_arrivals(queues, population, week):
+    """Add that week's new referrals to each surgeon's queue, in place."""
     new_arrivals = population[population["arrival_week"] == week]
     for surgeon_id, group in new_arrivals.groupby("assigned_surgeon_id"):
         queues.setdefault(surgeon_id, []).extend(group.to_dict("records"))
 
 
 def refresh_and_sort_queues(queues, week):
+    """
+    Recompute each patient's current wait time as of the given week, and
+    re-sort each surgeon's queue by priority (most urgent first) then by
+    wait time (longest-waiting first) - the booking order shared by
+    every condition.
+    """
     for patients in queues.values():
         for p in patients:
             p["current_wait_weeks"] = p["base_wait_weeks"] + (week - p["arrival_week"])
@@ -99,24 +117,38 @@ def refresh_and_sort_queues(queues, week):
 
 
 def make_predicted_duration_fn(surgeon_id, predicted_lookup):
+    """Return a duration_fn(patient) closure that looks up this surgeon's predicted p75 duration for the patient's procedure - for use by first_fit_scan/apply_gap_fill, which are duration-source-agnostic."""
     def duration_fn(patient):
         return predicted_lookup[(surgeon_id, patient["procedure_id"])]
     return duration_fn
 
 
 def make_oracle_duration_fn():
+    """Return a duration_fn(patient) closure that uses the patient's own true (perfect-information) duration instead of a prediction."""
     def duration_fn(patient):
         return patient["true_duration_min"]
     return duration_fn
 
 
 def week_sessions(schedule, sim_week):
+    """
+    Return this simulated week's sessions from the repeating fortnightly
+    schedule template, sorted for booking. The template's week 1 and
+    week 2 alternate every simulated week (sim_week=1,3,5,... use
+    template week 1; sim_week=2,4,6,... use template week 2).
+    """
     template_week = ((sim_week - 1) % 2) + 1
     week_df = schedule[schedule["week"] == template_week]
     return sort_sessions(week_df)
 
 
 def record_session_result(session, booked, sim_week, predicted_lookup, condition):
+    """
+    Package one session's outcome after booking: capacity used on both a
+    predicted-minutes and true-minutes basis, whether (and by how much)
+    it overran its bookable minutes, and which patients were booked.
+    Shared by every condition, so results stay directly comparable.
+    """
     surgeon_id = session["assigned_surgeon_id"]
     bookable_minutes = session["bookable_minutes"]
 
@@ -144,6 +176,12 @@ def record_session_result(session, booked, sim_week, predicted_lookup, condition
 
 
 def run_traditional(population, schedule, predicted_lookup):
+    """
+    Run the traditional/baseline condition (C0): same-week booking using
+    the fixed size-mix template (traditional_pack_session), with no
+    duration awareness and no gap-fill. Kept outside the four-condition
+    lead-time/gap-fill factorial by design - see module docstring.
+    """
     queues = initialize_queues(population)
     refresh_and_sort_queues(queues, 0)
     results = []
@@ -162,6 +200,18 @@ def run_traditional(population, schedule, predicted_lookup):
 
 
 def run_first_fit(population, schedule, predicted_lookup, duration_source, gap_fill):
+    """
+    Run one of the four first-fit conditions (C1-C4), selected by
+    duration_source ("predicted" or "oracle") and gap_fill (True/False).
+
+    Every session is planned LEAD_TIME_WEEKS ahead of when it runs, off
+    the queue as it stood at planning time (see module docstring for why
+    this lead time applies uniformly regardless of gap_fill). When the
+    session's week arrives, gap_fill=True runs a second pass
+    (apply_gap_fill) against whatever capacity was left over, using
+    whoever has joined the queue since planning; gap_fill=False executes
+    exactly what was planned, with no top-up.
+    """
     condition = f"{duration_source}{'_gapfill' if gap_fill else ''}"
     queues = initialize_queues(population)
     refresh_and_sort_queues(queues, 0)
@@ -212,6 +262,15 @@ def run_first_fit(population, schedule, predicted_lookup, duration_source, gap_f
 
 
 def summarise(results, label):
+    """
+    Print a single-condition summary (patients booked, cases/session,
+    utilisation, overrun rate, and a breakdown by session period) for
+    one replication's results list, and return it as a DataFrame.
+
+    Used for the single-seed sanity check in main(); the full
+    20-replication comparison is handled separately by
+    run_replications() and compare_conditions().
+    """
     df = pd.DataFrame(results)
     total_booked = df["patients_booked"].sum()
     total_bookable = df["bookable_minutes"].sum()
@@ -240,6 +299,14 @@ def summarise(results, label):
 
 
 def compare_conditions(results_by_condition):
+    """
+    Build and print a single table comparing all conditions side by
+    side (one row per condition) for a single replication, using the
+    same metrics as summarise() but without the per-period breakdown.
+
+    Takes a dict of {condition_label: results_list}. Returns the
+    comparison DataFrame.
+    """
     rows = []
     for label, results in results_by_condition.items():
         df = pd.DataFrame(results)
@@ -266,6 +333,33 @@ def run_replications(
     period_output_path="data/generated/simulation_replications_by_period.csv",
     session_output_path="data/generated/simulation_session_level.csv",
 ):
+    """
+    Run all five conditions across n_reps replications, each using a
+    different random seed to regenerate the patient population (referral
+    stream and true case durations). The theatre schedule and the
+    trained duration-prediction lookup stay fixed across replications,
+    so this tests whether the condition comparison holds up under
+    different random population draws, not whether the prediction model
+    itself is stable.
+
+    Writes three CSVs:
+      - output_path: one summary row per (replication, condition) -
+        patients booked, cases/session, utilisation, overrun rate, and
+        overrun severity (mean overrun minutes, both across all sessions
+        and only among sessions that actually overran).
+      - period_output_path: overrun rate per (replication, condition,
+        session period), for checking whether overrun risk concentrates
+        in particular session types.
+      - session_output_path: full session-level detail (patients
+        booked, overrun, overrun minutes), restricted to C0/C1/C2 only,
+        for the two-part regression analysis in the notebook. C3/C4 are
+        excluded because they have zero overruns by construction
+        (oracle-based first-fit only books a case if its true duration
+        already fits), which would cause complete separation in a
+        logistic regression.
+
+    Returns the three DataFrames (replications, by_period, session_level).
+    """
     schedule, procedures, predicted_lookup = load_reference_data()
     summary_rows = []
     period_rows = []
@@ -343,6 +437,28 @@ def run_replications(
 
 
 def build_calibration_dataset(n_reps=20, base_seed=1, output_path="data/generated/prediction_calibration.csv"):
+    """
+    Check the duration predictor's own accuracy, independent of the
+    booking simulation. For every patient in the population (booked or
+    not) across n_reps replications, records their predicted p75
+    duration and backoff level (from duration_predictions.csv) alongside
+    their true simulated duration, plus:
+      - covered: whether the true duration came in at or under the
+        prediction (should be ~75% of the time if well-calibrated, since
+        the predictor targets the 75th percentile).
+      - pct_diff: signed percentage difference, (predicted - true) /
+        true - positive means the prediction overshot (the intended
+        safety margin behaving as designed).
+      - abs_pct_diff: unsigned version, for a plain "how far off, on
+        average" accuracy figure.
+
+    Uses the full population rather than only booked patients, to avoid
+    conflating prediction accuracy with which patients happened to be
+    selected by the booking mechanism. Doesn't run the booking
+    simulation at all, so this is much cheaper than run_replications().
+
+    Returns the calibration DataFrame; also saves it to output_path.
+    """
     schedule, procedures, predicted_lookup = load_reference_data()
     predictions = pd.read_csv(PREDICTIONS_PATH)
     backoff_lookup = predictions.set_index(["surgeon_id", "procedure_id"])["backoff_level"].to_dict()
@@ -377,6 +493,13 @@ def build_calibration_dataset(n_reps=20, base_seed=1, output_path="data/generate
 
 
 def main():
+    """
+    Single-seed sanity check across all five conditions - prints a
+    per-condition summary and a side-by-side comparison table. Useful
+    for a quick debug run; superseded for actual reporting purposes by
+    run_replications(), which runs the same five conditions across 20
+    seeds for a statistically defensible comparison.
+    """
     SEED = 1
     schedule, procedures, predicted_lookup = load_reference_data()
     population = prepare_population(generate_population(SEED), procedures)

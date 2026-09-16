@@ -1,3 +1,8 @@
+<!-- Entry format: ## YYYY-MM-DD - <short title>, then **Decision:** (what
+changed, described technically/impersonally) and **Rationale:** (why,
+including how the change was confirmed/tested). No reference to AI
+collaboration per-entry - that's covered once, generically, elsewhere. -->
+
 # Decision Log
 
 Running record of significant methodological decisions made while building
@@ -416,3 +421,51 @@ since anyone present at planning time who didn't fit still won't fit later
 duplicate implementation. Confirmed behaviour-preserving: predictive_packer.py
 still produces 179 patients/83.7% utilisation, identical to before.
 
+## 2026-09-16 - Applied lead-time planning uniformly across first-fit conditions; added cases-per-session metric and replication design
+
+**Decision:** run_first_fit() in simulation.py now applies LEAD_TIME_WEEKS
+planning to every first-fit condition regardless of gap_fill, rather than
+only when gap_fill=True. Sessions are always planned two weeks ahead of
+when they run, off the queue as it stood at planning time; gap_fill now
+controls only whether apply_gap_fill() runs a top-up pass against that
+session's leftover capacity when it executes, using whoever has since
+joined the queue. summarise() and a new compare_conditions() function
+report cases-per-session (overall and by session period) alongside
+utilisation and overrun rate. A new run_replications() function runs all
+five conditions across N replications, each regenerating the patient
+population from a different random seed while holding the theatre
+schedule and the trained duration-prediction lookup fixed, and writes one
+summary row per (replication, condition) to
+data/generated/simulation_replications.csv.
+
+**Rationale:** Comparing the single-replication sanity-check output showed
+gap-fill conditions booking fewer patients than their non-gap-fill
+counterparts (C2 below C1, C4 below C3) - the opposite of what gap-fill
+should ever produce, since it only adds bookings on top of an existing
+plan and never removes anyone. Tracing this back showed the no-gap-fill
+conditions were booking each session same-week, off the fullest and most
+current queue available, while the gap-fill conditions were planning two
+weeks ahead off a smaller, earlier queue before topping up - two
+different booking-timing mechanisms being compared, not gap-fill in
+isolation. Holding lead time constant across all four first-fit
+conditions removes that confound, leaving gap-fill on/off as the only
+factor differing within each predicted/oracle pair. Cases-per-session was
+added because raw patient counts don't normalise for the fixed session
+count shared across every condition, making packing density hard to
+compare directly. The replication design deliberately keeps the schedule
+and prediction lookup fixed and varies only the population, since the
+question is whether the condition ordering holds under different random
+referral streams and case-duration draws, not whether the prediction
+model itself is stable; recording one summary row per condition per
+replication, rather than full session-level detail, keeps the output at
+the granularity a paired statistical comparison across conditions
+actually needs. The replications CSV is committed rather than left as a
+gitignored regenerable output, matching the convention already used for
+the project's other data/generated files, since it's what the evaluation
+chapter's statistics and figures are computed from and needs to remain an
+exact, reproducible artefact through to the February 2027 submission,
+independent of any package-version drift in a later re-run. Confirmed the
+fix behaves as expected: rerunning the single-replication check now shows
+patients booked increasing monotonically from C0 through C4
+(730/808/876/925/981), with gap-fill conditions no longer falling below
+their non-gap-fill counterparts.

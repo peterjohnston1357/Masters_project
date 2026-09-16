@@ -503,3 +503,37 @@ Confirmed both models converged cleanly and their fitted relationships
 matched the underlying data when plotted (predicted probability curves by
 condition against observed per-bin proportions; predicted-vs-actual and
 by-condition scatter plots for the severity model).
+
+
+## 2026-09-16 - Added prediction calibration analysis; corrected an outcome-conditioning flaw in its own design
+
+**Decision:** build_calibration_dataset() added to simulation.py, joining
+each replication's full patient population (booked or not) against the
+existing predicted_p75/backoff_level lookups from duration_predictions.csv,
+saved to data/generated/prediction_calibration.csv. The evaluation notebook
+computes overall coverage, mean signed and absolute percentage difference
+between predicted and actual duration, broken down by size_category,
+backoff_level, and duration quintile, plus two diagnostic plots (predicted
+vs actual scatter, residual vs true duration). The duration-quintile
+breakdown groups patients by predicted_p75_min, not by their own realized
+true_duration_min.
+
+**Rationale:** Needed a direct check of the duration predictor's own
+accuracy, separate from its downstream effect on packing, utilisation, and
+overrun already covered elsewhere. Used the full population rather than
+just booked patients to avoid conflating prediction quality with booking
+selection effects, and to maximise sample size for the subgroup
+breakdowns. An initial version of the quintile breakdown grouped patients
+by their own realized true_duration_min, and showed coverage apparently
+collapsing from ~74% overall to 36% in the longest quintile. This grouping
+conditions on the outcome being validated: within any well-calibrated
+surgeon-procedure distribution, the cases with the longest realized
+duration are, by construction, disproportionately the ones that exceeded
+their own p75 threshold, so binning by realized outcome manufactures
+apparent tail miscalibration even for a perfectly calibrated predictor.
+Re-running the check grouped by predicted_p75_min instead (known in
+advance, not the outcome) gave uniform coverage (72-76%) across all five
+quintiles, matching the equally uniform size_category breakdown, and
+confirming the original collapse was an artifact of the check's design
+rather than a genuine predictor failure. No changes were made to
+duration_predictor.py as a result.

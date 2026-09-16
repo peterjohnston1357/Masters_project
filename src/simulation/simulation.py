@@ -342,6 +342,40 @@ def run_replications(
     return replications, by_period, session_level
 
 
+def build_calibration_dataset(n_reps=20, base_seed=1, output_path="data/generated/prediction_calibration.csv"):
+    schedule, procedures, predicted_lookup = load_reference_data()
+    predictions = pd.read_csv(PREDICTIONS_PATH)
+    backoff_lookup = predictions.set_index(["surgeon_id", "procedure_id"])["backoff_level"].to_dict()
+
+    rows = []
+    for i in range(n_reps):
+        seed = base_seed + i
+        population = prepare_population(generate_population(seed), procedures)
+
+        for record in population.to_dict("records"):
+            key = (record["assigned_surgeon_id"], record["procedure_id"])
+            predicted = predicted_lookup[key]
+            true = record["true_duration_min"]
+            rows.append({
+                "seed": seed,
+                "surgeon_id": record["assigned_surgeon_id"],
+                "procedure_id": record["procedure_id"],
+                "size_category": record["size_category"],
+                "backoff_level": backoff_lookup[key],
+                "predicted_p75_min": predicted,
+                "true_duration_min": true,
+                "covered": true <= predicted,
+                "pct_diff": 100 * (predicted - true) / true,
+                "abs_pct_diff": 100 * abs(predicted - true) / true,
+            })
+
+    calibration = pd.DataFrame(rows)
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    calibration.to_csv(output_path, index=False)
+    print(f"Saved {len(calibration)} rows to {output_path}")
+    return calibration
+
+
 def main():
     SEED = 1
     schedule, procedures, predicted_lookup = load_reference_data()

@@ -328,3 +328,24 @@ predicted utilisation under this scoring (1 of 58 sessions in the fortnight
 test), since it never checks duration when selecting patients - a genuine and
 expected finding about the fixed-template approach's limitations, not a
 calculation error.
+
+## 2026-09-16 - Persisting surgeon speed factors as harness ground truth
+
+**Decision:** generate_historical_cases.py now also saves each surgeon's true
+speed factor (previously generated in-memory only, then discarded) to
+data/generated/surgeon_speed_factors.csv. This file is for the simulation
+harness's own outcome-sampling only, used to generate realistic "actual"
+durations for newly-arriving patients during the simulation - it must never
+be read by duration_predictor.py or either packing module, since doing so
+would leak the ground truth the prediction model is meant to estimate from
+noisy data, undermining the entire evaluation.
+
+**Rationale:** The simulation harness needs a way to sample genuine "actual"
+outcomes for booked patients (for both the prediction-accuracy assessment and
+eventual overrun analysis), and reusing the same per-surgeon speed factors
+already used to generate the historical dataset keeps the synthetic world
+internally consistent - a surgeon's true underlying speed shouldn't differ
+between the historical period and the simulated future. Confirmed safe to
+add: the script uses a fixed random seed and the speed factors are the first
+thing drawn from the RNG, so persisting them doesn't change the
+previously-generated and already-validated historical_cases.csv content.

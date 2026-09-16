@@ -15,6 +15,14 @@ the "ground truth" used to generate this data; the prediction model built
 later must estimate them from this noisy historical data, not be given
 them directly, to keep the evaluation honest.
 
+The speed factors are also saved separately (data/generated/
+surgeon_speed_factors.csv) so the simulation harness can sample realistic
+"actual" durations for newly-arriving patients during the simulation,
+using the same ground truth as this historical data - this file must
+NEVER be read by duration_predictor.py or the packing modules themselves,
+only by the harness's own outcome-sampling step, or the evaluation stops
+being honest.
+
 Surgeons also have a tenure_start_date (data/reference/surgeons.csv): a
 surgeon can only be assigned cases dated on or after they joined, so a
 recently-appointed surgeon ends up with genuinely less historical data
@@ -47,6 +55,7 @@ HISTORY_YEARS = 2
 PROCEDURES_PATH = "data/reference/procedures.csv"
 SURGEONS_PATH = "data/reference/surgeons.csv"
 OUTPUT_PATH = "data/generated/historical_cases.csv"
+SPEED_FACTORS_PATH = "data/generated/surgeon_speed_factors.csv"
 
 REGION_TO_SUBSPECIALTY = {
     "Hip": "Hip-Knee-Leg",
@@ -152,6 +161,15 @@ def main():
     print(f"Wrote {len(historical_cases)} historical cases to {OUTPUT_PATH}")
     print(historical_cases.groupby("surgeon_id")["actual_duration_min"].mean())
     print(historical_cases.groupby("surgeon_id")["case_id"].count())
+
+    speed_factors_df = pd.DataFrame({
+        "surgeon_id": list(speed_factors.keys()),
+        "speed_factor": list(speed_factors.values()),
+    })
+    speed_factors_df.to_csv(SPEED_FACTORS_PATH, index=False)
+    print(f"\nWrote surgeon speed factors (ground truth, harness use only) "
+          f"to {SPEED_FACTORS_PATH}")
+    print(speed_factors_df)
 
 
 if __name__ == "__main__":

@@ -34,10 +34,6 @@ finally executes. The first LEAD_TIME_WEEKS of the simulation have no
 "before the simulation started" planning point, so those sessions are
 seeded using the initial (week-0) queue before the main loop starts.
 
-This module currently runs ONE replication across all 5 conditions and
-prints a comparison, as a sanity check before the full 20-replication,
-statistically-compared run is added on top.
-
 Run from the project root:
     python src/simulation/simulation.py
 """
@@ -50,6 +46,7 @@ from common import PRIORITY_RANK, sort_sessions, first_fit_scan
 from traditional_packer import pack_session as traditional_pack_session
 from gap_fill import apply_gap_fill
 
+import numpy as np
 import pandas as pd
 
 from population import generate_population, N_WEEKS
@@ -59,6 +56,8 @@ PROCEDURES_PATH = "data/reference/procedures.csv"
 PREDICTIONS_PATH = "data/generated/duration_predictions.csv"
 
 LEAD_TIME_WEEKS = 2
+
+REGRESSION_CONDITIONS = {"C0: Traditional", "C1: Predicted, no gap-fill", "C2: Predicted, gap-fill"}
 
 
 def load_reference_data():
@@ -139,6 +138,7 @@ def record_session_result(session, booked, sim_week, predicted_lookup, condition
         "predicted_capacity_used_min": predicted_used,
         "true_capacity_used_min": true_used,
         "overrun": true_used > bookable_minutes,
+        "overrun_minutes": max(0, true_used - bookable_minutes),
         "booked_patient_ids": [p["patient_id"] for p in booked],
     }
 
@@ -259,6 +259,89 @@ def compare_conditions(results_by_condition):
     return comparison
 
 
+def run_replications(
+    n_reps=20,
+    base_seed=1,
+    output_path="data/generated/simulation_replications.csv",
+    period_output_path="data/generated/simulation_replications_by_period.csv",
+    session_output_path="data/generated/simulation_session_level.csv",
+):
+    schedule, procedures, predicted_lookup = load_reference_data()
+    summary_rows = []
+    period_rows = []
+    session_rows = []
+
+    for i in range(n_reps):
+        seed = base_seed + i
+        population = prepare_population(generate_population(seed), procedures)
+
+        results_by_condition = {
+            "C0: Traditional": run_traditional(population, schedule, predicted_lookup),
+            "C1: Predicted, no gap-fill": run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=False),
+            "C2: Predicted, gap-fill": run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=True),
+            "C3: Oracle, no gap-fill": run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=False),
+            "C4: Oracle, gap-fill": run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=True),
+        }
+
+        for label, results in results_by_condition.items():
+            df = pd.DataFrame(results)
+
+            overrunning = df[df["overrun"]]
+            mean_overrun_minutes_when_overrun = (
+                overrunning["overrun_minutes"].mean() if len(overrunning) > 0 else np.nan
+            )
+
+            summary_rows.append({
+                "seed": seed,
+                "condition": label,
+                "sessions": len(df),
+                "patients_booked": df["patients_booked"].sum(),
+                "avg_cases_per_session": df["patients_booked"].mean(),
+                "utilisation_predicted_pct": 100 * df["predicted_capacity_used_min"].sum() / df["bookable_minutes"].sum(),
+                "utilisation_true_pct": 100 * df["true_capacity_used_min"].sum() / df["bookable_minutes"].sum(),
+                "overrun_rate_pct": 100 * df["overrun"].mean(),
+                "mean_overrun_minutes_all": df["overrun_minutes"].mean(),
+                "mean_overrun_minutes_when_overrun": mean_overrun_minutes_when_overrun,
+            })
+
+            period_summary = df.groupby("period")["overrun"].mean().mul(100)
+            period_counts = df.groupby("period").size()
+            for period, overrun_rate_pct in period_summary.items():
+                period_rows.append({
+                    "seed": seed,
+                    "condition": label,
+                    "period": period,
+                    "overrun_rate_pct": overrun_rate_pct,
+                    "n_sessions": int(period_counts[period]),
+                })
+
+            if label in REGRESSION_CONDITIONS:
+                session_subset = df[[
+                    "session_id", "period", "subspecialty_group", "patients_booked",
+                    "overrun", "overrun_minutes",
+                ]].copy()
+                session_subset["seed"] = seed
+                session_subset["condition"] = label
+                session_rows.append(session_subset)
+
+        print(f"Replication {i + 1}/{n_reps} (seed={seed}) complete.")
+
+    replications = pd.DataFrame(summary_rows)
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    replications.to_csv(output_path, index=False)
+    print(f"Saved {len(replications)} rows to {output_path}")
+
+    by_period = pd.DataFrame(period_rows)
+    by_period.to_csv(period_output_path, index=False)
+    print(f"Saved {len(by_period)} rows to {period_output_path}")
+
+    session_level = pd.concat(session_rows, ignore_index=True)
+    session_level.to_csv(session_output_path, index=False)
+    print(f"Saved {len(session_level)} session-level rows (C0/C1/C2 only) to {session_output_path}")
+
+    return replications, by_period, session_level
+
+
 def main():
     SEED = 1
     schedule, procedures, predicted_lookup = load_reference_data()
@@ -284,44 +367,6 @@ def main():
         "C4: Oracle, gap-fill": oracle_gapfill_results,
     })
 
-
-def run_replications(n_reps=20, base_seed=1, output_path="data/generated/simulation_replications.csv"):
-    schedule, procedures, predicted_lookup = load_reference_data()
-    rows = []
-
-    for i in range(n_reps):
-        seed = base_seed + i
-        population = prepare_population(generate_population(seed), procedures)
-
-        results_by_condition = {
-            "C0: Traditional": run_traditional(population, schedule, predicted_lookup),
-            "C1: Predicted, no gap-fill": run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=False),
-            "C2: Predicted, gap-fill": run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=True),
-            "C3: Oracle, no gap-fill": run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=False),
-            "C4: Oracle, gap-fill": run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=True),
-        }
-
-        for label, results in results_by_condition.items():
-            df = pd.DataFrame(results)
-            rows.append({
-                "seed": seed,
-                "condition": label,
-                "sessions": len(df),
-                "patients_booked": df["patients_booked"].sum(),
-                "avg_cases_per_session": df["patients_booked"].mean(),
-                "utilisation_predicted_pct": 100 * df["predicted_capacity_used_min"].sum() / df["bookable_minutes"].sum(),
-                "utilisation_true_pct": 100 * df["true_capacity_used_min"].sum() / df["bookable_minutes"].sum(),
-                "overrun_rate_pct": 100 * df["overrun"].mean(),
-            })
-
-        print(f"Replication {i + 1}/{n_reps} (seed={seed}) complete.")
-
-    replications = pd.DataFrame(rows)
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    replications.to_csv(output_path, index=False)
-    print(f"Saved {len(replications)} rows ({n_reps} reps x 5 conditions) to {output_path}")
-
-    return replications
 
 if __name__ == "__main__":
     main()

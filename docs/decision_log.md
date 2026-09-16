@@ -469,3 +469,37 @@ fix behaves as expected: rerunning the single-replication check now shows
 patients booked increasing monotonically from C0 through C4
 (730/808/876/925/981), with gap-fill conditions no longer falling below
 their non-gap-fill counterparts.
+
+## 2026-09-16 - Added overrun severity metric, per-period overrun breakdown, and two-part regression for overrun risk
+
+**Decision:** record_session_result() now also computes overrun_minutes
+(max(0, true_capacity_used_min - bookable_minutes)) alongside the existing
+binary overrun flag. run_replications() writes three files instead of one:
+the existing per-(replication, condition) summary (now including
+mean_overrun_minutes_all and mean_overrun_minutes_when_overrun), a new
+per-(replication, condition, period) overrun-rate breakdown, and a new
+session-level file restricted to C0/C1/C2 (patients_booked, overrun,
+overrun_minutes, period, subspecialty_group per session per replication)
+for regression analysis. The evaluation notebook fits two models on the
+session-level data: a logistic regression of overrun (0/1) on
+patients_booked and condition, and, restricted to sessions that actually
+overran, a linear regression of overrun_minutes on the same predictors.
+
+**Rationale:** The single overrun-rate figure doesn't distinguish "gap-fill
+causes more overruns" from "gap-fill causes worse overruns when they
+happen," and the earlier per-condition-per-replication aggregates couldn't
+speak to whether overrun risk scales with how many cases are packed into a
+session versus which booking mechanism produced it. Restricting the
+session-level file and both regressions to C0/C1/C2 was necessary because
+C3/C4 have zero overruns by construction (oracle-based first-fit only
+books a case if its true duration already fits), which would cause
+complete separation in the logistic model if included. Splitting into a
+logistic model (probability of overrun) and a linear model conditional on
+overrun occurring (severity) follows the standard two-part/hurdle approach
+for an outcome that is mostly zero with an occasional positive value,
+rather than fitting one model across all sessions, which would violate
+linear regression's assumptions given the large point mass at zero.
+Confirmed both models converged cleanly and their fitted relationships
+matched the underlying data when plotted (predicted probability curves by
+condition against observed per-bin proportions; predicted-vs-actual and
+by-condition scatter plots for the severity model).

@@ -10,9 +10,11 @@ counts.
 
 Booking is a single forward pass through each surgeon's priority-ordered
 queue per session (clinical priority category first, then longest-waiting
-within that category): the first not-yet-booked patient is checked against
-the time remaining in the session; if their predicted duration fits, they
-are booked and the remaining capacity is reduced; if not, they are left in
+within that category) - this queue-building and session-ordering logic
+lives in common.py, shared with the traditional packer and the simulation
+harness. The first not-yet-booked patient is checked against the time
+remaining in the session; if their predicted duration fits, they are
+booked and the remaining capacity is reduced; if not, they are left in
 the queue (not removed) and the scan continues to the next patient. This
 matches standard first-fit bin-packing and mirrors how the traditional
 packer already behaves - no session is left short just because the very
@@ -23,15 +25,11 @@ is already packed) is deliberately not implemented here yet - see the
 decision log. This module will be extended, or left as-is, once the basic
 first-fit result has been evaluated under the simulation harness.
 
-Patients are booked from each surgeon's own priority-ordered queue only,
-matching the traditional packer - sessions never draw from another
-surgeon's patients.
-
 This module exposes pack_session() as the reusable per-session booking
-function; the simulation harness (built separately) will call it
-repeatedly across the repeating fortnightly schedule. main() here just
-runs it once across a single fortnight as a sanity check, in the same
-style as traditional_packer.py, so the two can be compared directly.
+function; the simulation harness calls it repeatedly across the repeating
+fortnightly schedule. main() here just runs it once across a single
+fortnight as a sanity check, in the same style as traditional_packer.py,
+so the two can be compared directly.
 
 Run from the project root:
     python src/packing/predictive_packer.py
@@ -39,11 +37,11 @@ Run from the project root:
 
 import pandas as pd
 
+from common import PRIORITY_RANK, build_surgeon_queues, sort_sessions
+
 WAITING_LIST_PATH = "data/generated/waiting_list.csv"
 SCHEDULE_PATH = "data/generated/theatre_schedule.csv"
 PREDICTIONS_PATH = "data/generated/duration_predictions.csv"
-
-PRIORITY_RANK = {"P2": 1, "P3": 2, "P4": 3}
 
 
 def load_data():
@@ -58,32 +56,6 @@ def load_data():
     )
 
     return waiting_list, schedule, predicted_lookup
-
-
-def build_surgeon_queues(waiting_list):
-    queues = {}
-    for surgeon_id, group in waiting_list.groupby("assigned_surgeon_id"):
-        ordered = group.sort_values(
-            ["priority_rank", "current_wait_weeks"], ascending=[True, False]
-        )
-        queues[surgeon_id] = ordered.to_dict("records")
-    return queues
-
-
-def sort_sessions(schedule):
-    week_order = {w: i for i, w in enumerate(sorted(schedule["week"].unique()))}
-    day_order = {d: i for i, d in enumerate(
-        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-    )}
-    period_order = {"AM": 0, "PM": 1, "EVENING": 2, "ALL_DAY": 0}
-
-    schedule = schedule.copy()
-    schedule["_week_sort"] = schedule["week"].map(week_order)
-    schedule["_day_sort"] = schedule["weekday"].map(day_order)
-    schedule["_period_sort"] = schedule["period"].map(period_order)
-    return schedule.sort_values(
-        ["_week_sort", "_day_sort", "_period_sort"]
-    ).drop(columns=["_week_sort", "_day_sort", "_period_sort"])
 
 
 def pack_session(session, queue, predicted_lookup):

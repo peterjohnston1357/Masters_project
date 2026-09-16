@@ -14,7 +14,9 @@ Patients are booked from each surgeon's own priority-ordered queue only
 (clinical priority category first, then longest-waiting within that
 category) - sessions never draw from another surgeon's patients, even
 within the same subspecialty, since both patients and sessions are
-already surgeon-specific in the underlying data.
+already surgeon-specific in the underlying data. This queue-building and
+session-ordering logic lives in common.py, shared with the predictive
+packer and the simulation harness.
 
 Booking itself never looks at predicted duration - only size category,
 via the fixed template. However, to allow a fair, like-for-like
@@ -30,15 +32,17 @@ predicted utilisation on this basis - that's a genuine, expected finding
 about the fixed-template approach's limitations, not an error.
 
 This module exposes pack_session() as the reusable per-session booking
-function; the simulation harness (built separately) will call it
-repeatedly across the repeating fortnightly schedule. main() here just
-runs it once across a single fortnight as a sanity check.
+function; the simulation harness calls it repeatedly across the
+repeating fortnightly schedule. main() here just runs it once across a
+single fortnight as a sanity check.
 
 Run from the project root:
     python src/packing/traditional_packer.py
 """
 
 import pandas as pd
+
+from common import PRIORITY_RANK, build_surgeon_queues, sort_sessions
 
 pd.set_option("display.width", 200)
 pd.set_option("display.max_columns", None)
@@ -55,8 +59,6 @@ SESSION_TEMPLATES = {
     "ALL_DAY": ["Large", "Medium", "Small", "Small"],
 }
 
-PRIORITY_RANK = {"P2": 1, "P3": 2, "P4": 3}
-
 
 def load_data():
     waiting_list = pd.read_csv(WAITING_LIST_PATH)
@@ -72,32 +74,6 @@ def load_data():
     )
 
     return waiting_list, schedule, predicted_lookup
-
-
-def build_surgeon_queues(waiting_list):
-    queues = {}
-    for surgeon_id, group in waiting_list.groupby("assigned_surgeon_id"):
-        ordered = group.sort_values(
-            ["priority_rank", "current_wait_weeks"], ascending=[True, False]
-        )
-        queues[surgeon_id] = ordered.to_dict("records")
-    return queues
-
-
-def sort_sessions(schedule):
-    week_order = {w: i for i, w in enumerate(sorted(schedule["week"].unique()))}
-    day_order = {d: i for i, d in enumerate(
-        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-    )}
-    period_order = {"AM": 0, "PM": 1, "EVENING": 2, "ALL_DAY": 0}
-
-    schedule = schedule.copy()
-    schedule["_week_sort"] = schedule["week"].map(week_order)
-    schedule["_day_sort"] = schedule["weekday"].map(day_order)
-    schedule["_period_sort"] = schedule["period"].map(period_order)
-    return schedule.sort_values(
-        ["_week_sort", "_day_sort", "_period_sort"]
-    ).drop(columns=["_week_sort", "_day_sort", "_period_sort"])
 
 
 def pack_session(session, queue):

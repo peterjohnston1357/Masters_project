@@ -78,6 +78,13 @@ SURGEON_SPEED_SD = 0.12
 
 
 def load_reference_tables():
+    """
+    Loads the procedure and surgeon reference tables, narrows the
+    procedure catalogue to elective procedures only (tagged with
+    subspecialty group), and parses each surgeon's tenure_start_date
+    into a plain date so it can be compared against sampled case dates
+    in assign_surgeons().
+    """
     procedures = pd.read_csv(PROCEDURES_PATH)
     surgeons = pd.read_csv(SURGEONS_PATH)
     surgeons["tenure_start_date"] = pd.to_datetime(surgeons["tenure_start_date"]).dt.date
@@ -87,6 +94,14 @@ def load_reference_tables():
 
 
 def assign_surgeon_speed_factors(surgeons, rng):
+    """
+    Draws each surgeon's personal speed multiplier from
+    Normal(1.0, SURGEON_SPEED_SD) (see constant comment above for the
+    real-world anchor), clipped to a plausible range to guard against
+    unrealistic extremes. Returns a dict keyed by surgeon_id so
+    downstream code can look up a surgeon's factor directly rather than
+    re-deriving it.
+    """
     factors = rng.normal(loc=1.0, scale=SURGEON_SPEED_SD, size=len(surgeons))
     # Guard against unrealistic extremes (e.g. near-zero or negative).
     factors = np.clip(factors, 0.7, 1.3)
@@ -94,6 +109,13 @@ def assign_surgeon_speed_factors(surgeons, rng):
 
 
 def sample_procedures(elective, rng, n):
+    """
+    Draws n procedure IDs for the historical dataset, weighted by each
+    elective procedure's relative_annual_weight - the same weighting
+    scheme used for the waiting list, so the historical case mix the
+    duration predictor trains on is consistent with the referral demand
+    the waiting list itself reflects.
+    """
     ids = elective["procedure_id"].tolist()
     weights = elective["relative_annual_weight"].to_numpy(dtype=float)
     weights = weights / weights.sum()
@@ -101,11 +123,25 @@ def sample_procedures(elective, rng, n):
 
 
 def sample_case_dates(rng, n):
+    """
+    Draws n case dates uniformly at random over the HISTORY_YEARS window
+    before SNAPSHOT_DATE, so historical cases are spread evenly across
+    the full 2-year lookback rather than clustered near either end.
+    """
     days_ago = rng.integers(0, HISTORY_YEARS * 365, size=n)
     return [SNAPSHOT_DATE - timedelta(days=int(d)) for d in days_ago]
 
 
 def assign_surgeons(subspecialty_groups, case_dates, surgeons, rng):
+    """
+    Assigns each case to a surgeon drawn uniformly at random from the
+    pool of surgeons in that case's subspecialty group who had already
+    joined by the case's date (tenure_start_date <= case_date) - this is
+    what gives recently-appointed surgeons genuinely less historical
+    data than established ones, rather than every surgeon being eligible
+    for the full 2-year window regardless of realism (see module
+    docstring).
+    """
     assigned = []
     for group, case_date in zip(subspecialty_groups, case_dates):
         pool = surgeons[
@@ -117,6 +153,19 @@ def assign_surgeons(subspecialty_groups, case_dates, surgeons, rng):
 
 
 def main():
+    """
+    Builds the full 4,000-case historical dataset: assigns surgeon speed
+    factors, samples each case's procedure, date, and surgeon, then
+    generates its actual duration from the procedure's population
+    distribution scaled by the assigned surgeon's speed factor. Writes
+    the cases (sorted by date) to OUTPUT_PATH, and separately persists
+    the speed factors themselves to SPEED_FACTORS_PATH as ground truth
+    for the simulation harness's own outcome-sampling (see module
+    docstring) - never for the duration predictor or packing modules to
+    read. Prints per-surgeon mean duration and case count as a quick
+    sanity check that the speed factors and tenure restriction are
+    behaving as expected.
+    """
     rng = np.random.default_rng(RANDOM_SEED)
     elective, surgeons = load_reference_tables()
     speed_factors = assign_surgeon_speed_factors(surgeons, rng)

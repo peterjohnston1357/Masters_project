@@ -71,6 +71,13 @@ WAIT_BANDS = [
 
 
 def load_reference_tables():
+    """
+    Loads the procedure and surgeon reference tables and narrows the
+    procedure catalogue to elective procedures only, tagged with each
+    one's subspecialty group via REGION_TO_SUBSPECIALTY - trauma
+    procedures are excluded here since this waiting list is
+    elective-only by design (see module docstring).
+    """
     procedures = pd.read_csv(PROCEDURES_PATH)
     surgeons = pd.read_csv(SURGEONS_PATH)
     elective = procedures[procedures["type"] == "Elective"].copy()
@@ -79,6 +86,14 @@ def load_reference_tables():
 
 
 def sample_procedures(elective, rng, n):
+    """
+    Draws n procedure IDs for the waiting list, weighted by each
+    elective procedure's relative_annual_weight (real/estimated UK
+    annual case volume) rather than sampled uniformly, so common
+    procedures (e.g. primary THR) appear far more often than rare ones -
+    reflecting actual referral demand rather than treating every
+    procedure as equally likely.
+    """
     ids = elective["procedure_id"].tolist()
     weights = elective["relative_annual_weight"].to_numpy(dtype=float)
     weights = weights / weights.sum()
@@ -86,12 +101,26 @@ def sample_procedures(elective, rng, n):
 
 
 def sample_priority_categories(rng, n):
+    """
+    Draws n NHS clinical priority categories (P2/P3/P4) according to
+    the PRIORITY_CATEGORIES split - an urgency signal used later in
+    booking order, independent of the shared RTT pathway target below.
+    """
     categories = list(PRIORITY_CATEGORIES.keys())
     shares = np.array(list(PRIORITY_CATEGORIES.values()))
     return rng.choice(categories, size=n, p=shares)
 
 
 def sample_wait_weeks(rng, n):
+    """
+    Draws n current wait times in weeks. Each patient is first assigned
+    to one of the three WAIT_BANDS (0-18/18-52/52+ weeks) according to
+    its probability mass, then given a wait uniformly distributed within
+    that band's range - reproducing the mixture calibrated against the
+    real May 2026 NHS T&O RTT position (see WAIT_BANDS comment above)
+    rather than drawing from a single smooth distribution that wouldn't
+    match the published breakdown.
+    """
     waits = np.empty(n)
     band_choice = rng.choice(
         len(WAIT_BANDS), size=n, p=[b[1] for b in WAIT_BANDS]
@@ -104,6 +133,13 @@ def sample_wait_weeks(rng, n):
 
 
 def assign_surgeons(subspecialty_groups, surgeons, rng):
+    """
+    Assigns each patient a surgeon drawn uniformly at random from the
+    pool of surgeons in their procedure's subspecialty group - patients
+    are not assigned to a specific surgeon by any other criterion (e.g.
+    case complexity), since the waiting list itself doesn't model
+    surgeon preference or referral routing.
+    """
     assigned = []
     for group in subspecialty_groups:
         pool = surgeons[surgeons["subspecialty_group"] == group]["surgeon_id"].tolist()
@@ -112,6 +148,14 @@ def assign_surgeons(subspecialty_groups, surgeons, rng):
 
 
 def main():
+    """
+    Builds the full 375-patient waiting list: samples each patient's
+    procedure, surgeon, priority category, and current wait, derives
+    their referral date and RTT compliance fields from the sampled
+    wait, and writes the result to OUTPUT_PATH. Prints summary
+    breakdowns (priority category, breach status, wait band) as a quick
+    sanity check against the calibration targets described above.
+    """
     rng = np.random.default_rng(RANDOM_SEED)
     elective, surgeons = load_reference_tables()
 
@@ -127,6 +171,9 @@ def main():
     referral_dates = [SNAPSHOT_DATE - timedelta(weeks=float(w)) for w in wait_weeks]
 
     def wait_band(w):
+        """Maps a wait time in weeks to its descriptive band label -
+        purely descriptive (unlike breached_18wk_target below), so it
+        doesn't itself imply RTT compliance or breach status."""
         if w <= 18:
             return "0-18 Weeks"
         elif w <= 52:

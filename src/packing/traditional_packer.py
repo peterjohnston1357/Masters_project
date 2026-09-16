@@ -61,6 +61,15 @@ SESSION_TEMPLATES = {
 
 
 def load_data():
+    """
+    Loads the waiting list, theatre schedule, and precomputed duration
+    predictions, and adds the derived columns the traditional packer
+    needs: each patient's size_category (joined from procedures.csv,
+    since the waiting list itself doesn't carry it) and priority_rank,
+    plus the same (surgeon_id, procedure_id) -> predicted_p75_min lookup
+    used to score utilisation after booking (see module docstring on the
+    like-for-like utilisation metric).
+    """
     waiting_list = pd.read_csv(WAITING_LIST_PATH)
     schedule = pd.read_csv(SCHEDULE_PATH)
     procedures = pd.read_csv(PROCEDURES_PATH).set_index("procedure_id")
@@ -77,6 +86,17 @@ def load_data():
 
 
 def pack_session(session, queue):
+    """
+    Books one session against its fixed size-mix template
+    (SESSION_TEMPLATES), working through the template slot by slot: for
+    each slot, scans the surgeon's queue for the first patient matching
+    that slot's required size category, books them if found, and
+    records why the slot went unfilled otherwise (queue_exhausted if the
+    queue is empty, no_matching_size if patients remain but none match).
+    Never looks at predicted duration - purely a size-category match.
+    Returns (booked, unfilled), where unfilled is a list of
+    (size_needed, reason) tuples.
+    """
     template = SESSION_TEMPLATES[session["period"]]
 
     booked = []
@@ -99,6 +119,14 @@ def pack_session(session, queue):
 
 
 def main():
+    """
+    Standalone sanity-check run: packs a single fortnight's schedule
+    against the full waiting list using the traditional template
+    heuristic, scores utilisation on the same predicted p75-minutes
+    basis as the predictive packer (see module docstring), and prints
+    overall and by-group/by-period summary statistics for a quick
+    plausibility check outside the full simulation harness.
+    """
     waiting_list, schedule, predicted_lookup = load_data()
     queues = build_surgeon_queues(waiting_list)
     schedule = sort_sessions(schedule)

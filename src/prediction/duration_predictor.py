@@ -45,6 +45,8 @@ DURATION_PREDICTIONS_PATH = "data/generated/duration_predictions.csv"
 
 
 def load_data():
+    """Loads the procedure, surgeon, and historical case reference
+    tables used by predict_duration()'s backoff hierarchy."""
     procedures = pd.read_csv(PROCEDURES_PATH).set_index("procedure_id")
     surgeons = pd.read_csv(SURGEONS_PATH).set_index("surgeon_id")
     historical = pd.read_csv(HISTORICAL_PATH)

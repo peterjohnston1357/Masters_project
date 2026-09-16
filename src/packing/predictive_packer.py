@@ -37,6 +37,15 @@ PREDICTIONS_PATH = "data/generated/duration_predictions.csv"
 
 
 def load_data():
+    """
+    Loads the waiting list, theatre schedule, and precomputed duration
+    predictions, and adds the two derived columns booking needs: each
+    patient's priority_rank (for queue ordering) and a
+    (surgeon_id, procedure_id) -> predicted_p75_min lookup dict built
+    from duration_predictions.csv, so per-patient predictions can be
+    looked up directly during booking rather than re-joining on every
+    call.
+    """
     waiting_list = pd.read_csv(WAITING_LIST_PATH)
     schedule = pd.read_csv(SCHEDULE_PATH)
     predictions = pd.read_csv(PREDICTIONS_PATH)
@@ -51,6 +60,14 @@ def load_data():
 
 
 def make_predicted_duration_fn(surgeon_id, predicted_lookup):
+    """
+    Builds a duration_fn(patient) closure bound to a specific surgeon,
+    looking up that patient's predicted p75 duration from
+    predicted_lookup. Raises if no prediction exists for the
+    surgeon/procedure pair, since that would indicate a genuine data gap
+    (every eligible surgeon/procedure combination should have been
+    predicted for) rather than something to silently skip.
+    """
     def duration_fn(patient):
         key = (surgeon_id, patient["procedure_id"])
         predicted_duration = predicted_lookup.get(key)
@@ -64,12 +81,27 @@ def make_predicted_duration_fn(surgeon_id, predicted_lookup):
 
 
 def pack_session(session, queue, predicted_lookup):
+    """
+    Books one session using first_fit_scan(), with the duration source
+    built from this session's assigned surgeon's predicted-duration
+    lookup. Thin wrapper kept as its own function so the simulation
+    harness can call it per session in the same way as the traditional
+    packer's pack_session() and, for the oracle condition, swap in a
+    different duration_fn without touching first_fit_scan() itself.
+    """
     surgeon_id = session["assigned_surgeon_id"]
     duration_fn = make_predicted_duration_fn(surgeon_id, predicted_lookup)
     return first_fit_scan(queue, session["bookable_minutes"], duration_fn)
 
 
 def main():
+    """
+    Standalone sanity-check run: packs a single fortnight's schedule
+    against the full waiting list using the predictive method (no
+    gap-fill - see module docstring), and prints overall and
+    by-group/by-period summary statistics for a quick plausibility check
+    outside the full simulation harness.
+    """
     waiting_list, schedule, predicted_lookup = load_data()
     queues = build_surgeon_queues(waiting_list)
     schedule = sort_sessions(schedule)

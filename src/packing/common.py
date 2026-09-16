@@ -28,6 +28,15 @@ PRIORITY_RANK = {"P2": 1, "P3": 2, "P4": 3}
 
 
 def build_surgeon_queues(waiting_list):
+    """
+    Groups the waiting list into one priority-ordered queue per surgeon:
+    within each surgeon's group, patients are sorted by priority_rank
+    ascending (P2 first) then current_wait_weeks descending (longest-
+    waiting first within the same category) - the booking order agreed
+    for both packing methods. Returns a dict of surgeon_id -> list of
+    patient dicts, so downstream code can pop/scan each surgeon's queue
+    independently without touching pandas further.
+    """
     queues = {}
     for surgeon_id, group in waiting_list.groupby("assigned_surgeon_id"):
         ordered = group.sort_values(
@@ -38,6 +47,15 @@ def build_surgeon_queues(waiting_list):
 
 
 def sort_sessions(schedule):
+    """
+    Returns the schedule sorted into real chronological order - week,
+    then weekday (Monday-Friday), then period within a day (AM/ALL_DAY
+    before PM before EVENING) - so both packing methods and the
+    simulation harness always process sessions in the order they'd
+    actually run in, regardless of whatever order they appear in the
+    source CSV. The three sort-key columns are temporary and dropped
+    again before returning.
+    """
     week_order = {w: i for i, w in enumerate(sorted(schedule["week"].unique()))}
     day_order = {d: i for i, d in enumerate(
         ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]

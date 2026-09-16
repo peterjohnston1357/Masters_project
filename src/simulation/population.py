@@ -34,6 +34,12 @@ as its duration source, and by every condition for recording actual
 outcomes (overrun rate, prediction accuracy) regardless of which
 duration source drove the booking decision itself.
 
+generate_population() takes an optional n_weeks override so a caller can
+run a longer horizon than the project default (N_WEEKS=12) - e.g.
+src/simulation/simulation.py's RTT-compliance analysis, which needs a
+longer horizon for referrals to actually reach the 18-week RTT target,
+without changing the default used by every other analysis.
+
 Run directly for a one-off sanity check:
     python src/simulation/population.py
 """
@@ -185,10 +191,10 @@ def sample_new_arrivals_for_week(week, elective, proc_lookup, surgeon_pools, spe
     return patients
 
 
-def generate_population(seed):
+def generate_population(seed, n_weeks=N_WEEKS):
     """
     Builds one full replication's population for the given seed: the 375
-    initial patients plus N_WEEKS of new arrivals, all drawn from a
+    initial patients plus n_weeks of new arrivals, all drawn from a
     single seeded RNG so the whole sequence - initial durations, then
     each week's arrivals in order - is fully reproducible from the seed
     alone. Different seeds produce independent populations; this is what
@@ -196,13 +202,18 @@ def generate_population(seed):
     replications while holding the theatre schedule and duration
     predictor fixed, so every scheduling condition within a replication
     still sees the identical population (see module docstring).
+
+    n_weeks defaults to the project-wide N_WEEKS constant, but can be
+    overridden to run a longer (or shorter) horizon - e.g. the
+    RTT-compliance analysis, which needs more runway than the default
+    12 weeks for referrals to actually reach the 18-week RTT target.
     """
     rng = np.random.default_rng(seed)
     waiting_list, elective, proc_lookup, surgeon_pools, speed_factors = load_reference_tables()
 
     patients = build_initial_patients(waiting_list, proc_lookup, speed_factors, rng)
     next_id = 1
-    for week in range(1, N_WEEKS + 1):
+    for week in range(1, n_weeks + 1):
         new_patients = sample_new_arrivals_for_week(
             week, elective, proc_lookup, surgeon_pools, speed_factors, rng, next_id
         )

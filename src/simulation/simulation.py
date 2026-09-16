@@ -34,6 +34,19 @@ finally executes. The first LEAD_TIME_WEEKS of the simulation have no
 "before the simulation started" planning point, so those sessions are
 seeded using the initial (week-0) queue before the main loop starts.
 
+run_traditional() and run_first_fit() both take an optional n_weeks
+override (default N_WEEKS) and both return (results, patient_outcomes):
+results is the existing session-level list used by run_replications();
+patient_outcomes is one row per patient (booked, or still waiting when
+the horizon ends) recording their wait-to-treatment, used by
+run_rtt_replications() to check whether scheduling condition affects
+whether patients are actually treated within the NHS 18-week RTT
+target - a question the default 12-week horizon can't answer, since a
+patient referred during that window can accrue at most ~11 weeks of
+wait, never enough to reach 18. run_rtt_replications() runs the same
+five conditions at a longer horizon (26 weeks by default) purely for
+that question, without changing any of the existing 12-week outputs.
+
 Run from the project root:
     python src/simulation/simulation.py
 """
@@ -56,6 +69,7 @@ PROCEDURES_PATH = "data/reference/procedures.csv"
 PREDICTIONS_PATH = "data/generated/duration_predictions.csv"
 
 LEAD_TIME_WEEKS = 2
+RTT_TARGET_WEEKS = 18
 
 REGRESSION_CONDITIONS = {"C0: Traditional", "C1: Predicted, no gap-fill", "C2: Predicted, gap-fill"}
 
@@ -175,18 +189,75 @@ def record_session_result(session, booked, sim_week, predicted_lookup, condition
     }
 
 
-def run_traditional(population, schedule, predicted_lookup):
+def record_patient_outcomes(booked, sim_week, condition):
+    """
+    Build one row per booked patient recording their wait-to-treatment.
+    current_wait_weeks was set on each patient dict just before booking
+    (see refresh_and_sort_queues), so it already reflects their true
+    wait at the point they were actually treated, not just when they
+    joined the queue. Used only by the RTT-compliance analysis (see
+    run_rtt_replications()) - the regular utilisation/overrun analysis
+    in run_replications() doesn't use this.
+    """
+    return [
+        {
+            "patient_id": p["patient_id"],
+            "condition": condition,
+            "arrival_week": p["arrival_week"],
+            "sim_week_treated": sim_week,
+            "wait_weeks_at_treatment": p["current_wait_weeks"],
+            "treated": True,
+        }
+        for p in booked
+    ]
+
+
+def record_unbooked_patients(queues, condition):
+    """
+    For every patient still sitting in a surgeon's queue when a run
+    ends (never booked within the horizon), records them as untreated.
+    wait_weeks_at_treatment is left unset since we don't know how much
+    longer they'd have waited beyond the simulated window - the
+    RTT-compliance analysis counts them as breached whenever they fall
+    in a cohort whose eligibility window has already fully elapsed (see
+    run_rtt_replications()), without fabricating a wait time we can't
+    actually observe.
+    """
+    rows = []
+    for patients in queues.values():
+        for p in patients:
+            rows.append({
+                "patient_id": p["patient_id"],
+                "condition": condition,
+                "arrival_week": p["arrival_week"],
+                "sim_week_treated": None,
+                "wait_weeks_at_treatment": None,
+                "treated": False,
+            })
+    return rows
+
+
+def run_traditional(population, schedule, predicted_lookup, n_weeks=N_WEEKS):
     """
     Run the traditional/baseline condition (C0): same-week booking using
     the fixed size-mix template (traditional_pack_session), with no
     duration awareness and no gap-fill. Kept outside the four-condition
     lead-time/gap-fill factorial by design - see module docstring.
+
+    n_weeks defaults to the project-wide N_WEEKS constant but can be
+    overridden to run a longer horizon (see run_rtt_replications()).
+
+    Returns (results, patient_outcomes): results is the existing
+    session-level list; patient_outcomes is one row per patient (booked,
+    or still waiting when the horizon ends) recording their
+    wait-to-treatment.
     """
     queues = initialize_queues(population)
     refresh_and_sort_queues(queues, 0)
     results = []
+    patient_outcomes = []
 
-    for sim_week in range(1, N_WEEKS + 1):
+    for sim_week in range(1, n_weeks + 1):
         release_new_arrivals(queues, population, sim_week)
         refresh_and_sort_queues(queues, sim_week)
 
@@ -195,11 +266,13 @@ def run_traditional(population, schedule, predicted_lookup):
             queue = queues.setdefault(surgeon_id, [])
             booked, _ = traditional_pack_session(session, queue)
             results.append(record_session_result(session, booked, sim_week, predicted_lookup, "traditional"))
+            patient_outcomes.extend(record_patient_outcomes(booked, sim_week, "traditional"))
 
-    return results
+    patient_outcomes.extend(record_unbooked_patients(queues, "traditional"))
+    return results, patient_outcomes
 
 
-def run_first_fit(population, schedule, predicted_lookup, duration_source, gap_fill):
+def run_first_fit(population, schedule, predicted_lookup, duration_source, gap_fill, n_weeks=N_WEEKS):
     """
     Run one of the four first-fit conditions (C1-C4), selected by
     duration_source ("predicted" or "oracle") and gap_fill (True/False).
@@ -211,11 +284,22 @@ def run_first_fit(population, schedule, predicted_lookup, duration_source, gap_f
     (apply_gap_fill) against whatever capacity was left over, using
     whoever has joined the queue since planning; gap_fill=False executes
     exactly what was planned, with no top-up.
+
+    n_weeks defaults to the project-wide N_WEEKS constant but can be
+    overridden to run a longer horizon (see run_rtt_replications()).
+    Sessions already planned (via the lead-time lookahead) for a week
+    just beyond n_weeks, but not yet executed when the main loop ends,
+    are drained afterwards - otherwise patients already removed from the
+    queue during planning would be silently lost at the horizon boundary
+    rather than recorded as treated.
+
+    Returns (results, patient_outcomes) - see run_traditional().
     """
     condition = f"{duration_source}{'_gapfill' if gap_fill else ''}"
     queues = initialize_queues(population)
     refresh_and_sort_queues(queues, 0)
     results = []
+    patient_outcomes = []
     pending = {}
 
     def duration_fn_for(surgeon_id):
@@ -224,7 +308,7 @@ def run_first_fit(population, schedule, predicted_lookup, duration_source, gap_f
         return make_oracle_duration_fn()
 
     def plan_week(plan_week_num):
-        if plan_week_num > N_WEEKS:
+        if plan_week_num > n_weeks:
             return
         for _, session in week_sessions(schedule, plan_week_num).iterrows():
             surgeon_id = session["assigned_surgeon_id"]
@@ -233,17 +317,14 @@ def run_first_fit(population, schedule, predicted_lookup, duration_source, gap_f
             booked, remaining = first_fit_scan(queue, session["bookable_minutes"], duration_fn)
             pending.setdefault(plan_week_num, []).append((session, booked, remaining))
 
-    # Lead-time planning now applies to every first-fit condition, gap-fill
-    # or not, so gap-fill on/off is the only thing differing within a
-    # predicted/oracle pair. Seed the first LEAD_TIME_WEEKS of sessions from
-    # the initial (week-0) queue before the main loop starts.
-    for w in range(1, LEAD_TIME_WEEKS + 1):
-        plan_week(w)
-
-    for sim_week in range(1, N_WEEKS + 1):
-        release_new_arrivals(queues, population, sim_week)
-        refresh_and_sort_queues(queues, sim_week)
-
+    def execute_week(sim_week):
+        """
+        Runs gap-fill (if enabled) and records results/patient outcomes
+        for whichever sessions were planned for this week. Shared by the
+        main loop (for sim_week 1..n_weeks) and the end-of-horizon drain
+        below (for any leftover planned-but-unexecuted weeks just beyond
+        n_weeks), so both paths behave identically.
+        """
         for session, booked, remaining in pending.pop(sim_week, []):
             if gap_fill:
                 surgeon_id = session["assigned_surgeon_id"]
@@ -255,10 +336,29 @@ def run_first_fit(population, schedule, predicted_lookup, duration_source, gap_f
                 total_booked = booked
 
             results.append(record_session_result(session, total_booked, sim_week, predicted_lookup, condition))
+            patient_outcomes.extend(record_patient_outcomes(total_booked, sim_week, condition))
 
+    # Lead-time planning now applies to every first-fit condition, gap-fill
+    # or not, so gap-fill on/off is the only thing differing within a
+    # predicted/oracle pair. Seed the first LEAD_TIME_WEEKS of sessions from
+    # the initial (week-0) queue before the main loop starts.
+    for w in range(1, LEAD_TIME_WEEKS + 1):
+        plan_week(w)
+
+    for sim_week in range(1, n_weeks + 1):
+        release_new_arrivals(queues, population, sim_week)
+        refresh_and_sort_queues(queues, sim_week)
+        execute_week(sim_week)
         plan_week(sim_week + LEAD_TIME_WEEKS)
 
-    return results
+    # Drain any sessions planned for weeks just beyond n_weeks but not yet
+    # executed, so patients already removed from the queue during planning
+    # are still recorded as treated rather than lost at the horizon edge.
+    for leftover_week in sorted(pending.keys()):
+        execute_week(leftover_week)
+
+    patient_outcomes.extend(record_unbooked_patients(queues, condition))
+    return results, patient_outcomes
 
 
 def summarise(results, label):
@@ -370,11 +470,11 @@ def run_replications(
         population = prepare_population(generate_population(seed), procedures)
 
         results_by_condition = {
-            "C0: Traditional": run_traditional(population, schedule, predicted_lookup),
-            "C1: Predicted, no gap-fill": run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=False),
-            "C2: Predicted, gap-fill": run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=True),
-            "C3: Oracle, no gap-fill": run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=False),
-            "C4: Oracle, gap-fill": run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=True),
+            "C0: Traditional": run_traditional(population, schedule, predicted_lookup)[0],
+            "C1: Predicted, no gap-fill": run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=False)[0],
+            "C2: Predicted, gap-fill": run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=True)[0],
+            "C3: Oracle, no gap-fill": run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=False)[0],
+            "C4: Oracle, gap-fill": run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=True)[0],
         }
 
         for label, results in results_by_condition.items():
@@ -492,6 +592,113 @@ def build_calibration_dataset(n_reps=20, base_seed=1, output_path="data/generate
     return calibration
 
 
+def run_rtt_replications(
+    n_reps=20,
+    base_seed=1,
+    n_weeks=26,
+    rtt_target_weeks=RTT_TARGET_WEEKS,
+    output_path="data/generated/simulation_rtt_replications.csv",
+):
+    """
+    Separate, longer-horizon replication set built specifically to check
+    whether the utilisation/throughput gains seen in run_replications()
+    (12-week horizon) actually translate into more patients being
+    treated within the NHS constitutional 18-week RTT target - a
+    question the 12-week horizon can't answer, since a patient referred
+    during that window can accrue at most ~11 weeks of wait, never
+    enough to reach (let alone breach) 18 weeks. Uses n_weeks=26 by
+    default so referrals arriving reasonably late in the window still
+    have a full 18 weeks to either be treated or genuinely breach before
+    the simulation ends. Leaves every existing output file untouched -
+    this writes only to output_path.
+
+    Reports two cohorts separately per condition, not blended, because
+    they answer different questions and blending them would understate
+    real differences between conditions:
+      - "initial": the 375 patients already on the snapshot waiting
+        list, each already carrying real accrued wait (39.2% of them
+        already over 18 weeks before the simulation even starts - see
+        generate_waiting_list.py's own printed breach rate). This checks
+        how fast each condition clears an already-breached backlog, not
+        whether it can reach 100% - an already-breached patient can
+        never retroactively become compliant, so the achievable ceiling
+        here is well under 100% for every condition.
+      - "new_arrivals_eligible": patients referred in weeks 1 to
+        (n_weeks - rtt_target_weeks) only. A patient referred later than
+        that hasn't yet had the full rtt_target_weeks to reach a verdict
+        by the time the simulation ends, so counting them as "compliant
+        so far" would be wrong (right-censoring) - they're excluded
+        entirely rather than assumed compliant. This cohort tests
+        whether a condition keeps pace with fresh demand, since these
+        patients all start at zero wait.
+
+    A patient never booked within the horizon is recorded as breached
+    if they fall in either cohort above (their wait can only be at least
+    as long as time-since-referral so far, which for cohort membership
+    already exceeds rtt_target_weeks) - see record_unbooked_patients().
+
+    Writes one summary row per (replication, condition, cohort) to
+    output_path: n_patients (cohort size, the % compliant denominator -
+    includes never-treated patients, matching how the real NHS 18-week
+    standard is measured), n_treated, n_treated_within_target,
+    pct_within_target, and mean/median wait_weeks_at_treatment (treated
+    patients only).
+
+    Returns the summary DataFrame.
+    """
+    schedule, procedures, predicted_lookup = load_reference_data()
+    eligible_new_arrival_cutoff = n_weeks - rtt_target_weeks
+    summary_rows = []
+
+    for i in range(n_reps):
+        seed = base_seed + i
+        population = prepare_population(generate_population(seed, n_weeks=n_weeks), procedures)
+
+        results_by_condition = {
+            "C0: Traditional": run_traditional(population, schedule, predicted_lookup, n_weeks=n_weeks),
+            "C1: Predicted, no gap-fill": run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=False, n_weeks=n_weeks),
+            "C2: Predicted, gap-fill": run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=True, n_weeks=n_weeks),
+            "C3: Oracle, no gap-fill": run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=False, n_weeks=n_weeks),
+            "C4: Oracle, gap-fill": run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=True, n_weeks=n_weeks),
+        }
+
+        initial_ids = set(population.loc[population["arrival_week"] == 0, "patient_id"])
+        eligible_new_ids = set(population.loc[
+            (population["arrival_week"] > 0) & (population["arrival_week"] <= eligible_new_arrival_cutoff),
+            "patient_id"
+        ])
+        cohort_id_sets = {"initial": initial_ids, "new_arrivals_eligible": eligible_new_ids}
+
+        for label, (_, patient_outcomes) in results_by_condition.items():
+            outcomes = pd.DataFrame(patient_outcomes)
+
+            for cohort_name, cohort_ids in cohort_id_sets.items():
+                cohort_df = outcomes[outcomes["patient_id"].isin(cohort_ids)]
+                treated = cohort_df[cohort_df["treated"]]
+                within_target = treated[treated["wait_weeks_at_treatment"] <= rtt_target_weeks]
+
+                summary_rows.append({
+                    "seed": seed,
+                    "condition": label,
+                    "cohort": cohort_name,
+                    "n_patients": len(cohort_df),
+                    "n_treated": len(treated),
+                    "n_treated_within_target": len(within_target),
+                    "pct_within_target": 100 * len(within_target) / len(cohort_df) if len(cohort_df) else np.nan,
+                    "mean_wait_weeks_at_treatment": treated["wait_weeks_at_treatment"].mean() if len(treated) else np.nan,
+                    "median_wait_weeks_at_treatment": treated["wait_weeks_at_treatment"].median() if len(treated) else np.nan,
+                })
+
+        print(f"RTT replication {i + 1}/{n_reps} (seed={seed}) complete.")
+
+    rtt_replications = pd.DataFrame(summary_rows)
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    rtt_replications.to_csv(output_path, index=False)
+    print(f"Saved {len(rtt_replications)} rows to {output_path}")
+
+    return rtt_replications
+
+
 def main():
     """
     Single-seed sanity check across all five conditions - prints a
@@ -504,11 +711,11 @@ def main():
     schedule, procedures, predicted_lookup = load_reference_data()
     population = prepare_population(generate_population(SEED), procedures)
 
-    traditional_results = run_traditional(population, schedule, predicted_lookup)
-    predicted_results = run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=False)
-    predicted_gapfill_results = run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=True)
-    oracle_results = run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=False)
-    oracle_gapfill_results = run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=True)
+    traditional_results, _ = run_traditional(population, schedule, predicted_lookup)
+    predicted_results, _ = run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=False)
+    predicted_gapfill_results, _ = run_first_fit(population, schedule, predicted_lookup, "predicted", gap_fill=True)
+    oracle_results, _ = run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=False)
+    oracle_gapfill_results, _ = run_first_fit(population, schedule, predicted_lookup, "oracle", gap_fill=True)
 
     summarise(traditional_results, "C0: Traditional")
     summarise(predicted_results, "C1: Predicted, no gap-fill")

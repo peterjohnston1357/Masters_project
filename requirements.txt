@@ -3,3 +3,5 @@ numpy
 scipy
 jupyter
 pytest
+scikit-learn==1.6.1
+quantile-forest==1.4.2

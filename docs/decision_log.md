@@ -703,3 +703,54 @@ Diagnostic output saved to
 `data/generated/booking_order_diagnostic.csv`; summary tables and the
 queue-position boxplot are in the notebook and saved to
 `notebooks/figures/booking_order_by_size.png`.
+
+
+## 2026-09-17 - Quantile regression forest comparison against the backoff-hierarchy predictor
+
+I wanted to genuinely test whether a fitted machine-learning model could
+out-predict the backoff-hierarchy approach, rather than either assume ML
+would automatically be better, or assume the simpler approach was good
+enough without checking.
+
+I chose a quantile regression forest over a gradient-boosted quantile
+alternative, to match Dean et al. (2022)'s use of quantile regression
+forests for the same individualised surgery-duration-prediction problem.
+Also, a bagging-based ensemble tends to be more forgiving of the
+sparser surgeon-procedure combinations in this dataset than a
+boosting-based model would be without careful tuning.
+
+To make the comparison genuinely fair, I evaluated both methods using
+matched 5-fold cross-validation on the same 4,000 historical cases: for
+each fold, predict_duration() (the real backoff-hierarchy function, left
+completely unchanged) was called using only that fold's training rows as
+its historical data, and a quantile regression forest was fit on the same
+training rows and the same features (surgeon, procedure, size category,
+subspecialty group). Both methods therefore predicted every historical
+case out-of-sample, from a version of themselves that had never seen that
+case during fitting.
+
+Result: across all 4,000 cases, the two methods were statistically
+indistinguishable. Coverage against the 75th-percentile target was 74.6%
+(backoff) vs 74.7% (QRF); mean absolute error was 18.2 minutes for both;
+mean absolute percentage difference was 27.8% vs 27.9%. A paired
+comparison of per-case absolute error found no significant difference
+(t-test p=0.168, Wilcoxon p=0.171) and a negligible effect size (Cohen's
+d=0.022).
+
+I set the adoption threshold before running this comparison: a materially
+better result would mean adopting the QRF as the production predictor and
+rebuilding the packers, simulation harness, and downstream RTT/calibration
+analysis around it; a marginal or absent improvement would mean keeping
+the backoff hierarchy as-is. Given the result, I'm keeping the backoff
+hierarchy - duration_predictor.py is unchanged, and nothing downstream of
+it needed to be rerun.
+
+I don't see this as a null result to set aside. On a historical dataset
+this size, with genuinely sparse cells for some surgeon-procedure
+combinations, a fitted ML model had no measurable advantage over a
+simpler heuristic that already encodes the same hierarchical structure -
+surgeon, then peers, then size category - explicitly rather than learning
+it implicitly from limited data. This is the same finding the booking-order
+diagnostic already pointed to at the packing-mechanism level: added
+sophistication doesn't automatically buy a measurable improvement, and is
+worth testing rather than assumed.

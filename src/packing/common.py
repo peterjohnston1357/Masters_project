@@ -27,6 +27,18 @@ predictive_packer.py, gap_fill.py, and the simulation harness.
 PRIORITY_RANK = {"P2": 1, "P3": 2, "P4": 3}
 
 
+# Flat per-patient turnaround/changeover time (minutes) between consecutive
+# patients booked into the same session - covers theatre cleaning, patient
+# transfer and anaesthetic changeover between cases. Charged before every
+# booked patient except the first one in a session (the first patient has
+# no preceding case to turn round from), which is mathematically the same
+# total per session as charging it after every patient except the last,
+# but can be computed live during a single forward pass without needing
+# to know in advance which patient will turn out to be last. Sourced from
+# an NHS Improvement report on operating theatre efficiency.
+TURNAROUND_MIN = 20
+
+
 def build_surgeon_queues(waiting_list):
     """
     Groups the waiting list into one priority-ordered queue per surgeon:
@@ -71,7 +83,7 @@ def sort_sessions(schedule):
     ).drop(columns=["_week_sort", "_day_sort", "_period_sort"])
 
 
-def first_fit_scan(queue, capacity, duration_fn):
+def first_fit_scan(queue, capacity, duration_fn, already_has_bookings=False):
     """
     Single forward pass through queue (already priority-ordered): books
     whoever fits within capacity, skips (leaves in queue, in order)
@@ -84,17 +96,31 @@ def first_fit_scan(queue, capacity, duration_fn):
     duration for the oracle condition) without this function needing to
     know the difference.
 
-    Returns (booked, remaining_capacity).
+    Each booked patient also consumes TURNAROUND_MIN minutes of
+    changeover time, except the first patient booked into the session -
+    see TURNAROUND_MIN's own comment for why it's charged this way.
+    already_has_bookings lets a later pass over the same session (gap-fill,
+    run against whatever capacity planning left over) know the session
+    already has at least one patient booked, so its own first booked
+    patient still incurs the turnaround charge rather than being treated
+    as if it were the session's first patient all over again.
+
+    Returns (booked, remaining_capacity), same as before this change -
+    callers that need to know whether the session now has any bookings
+    can compute that themselves as `already_has_bookings or bool(booked)`.
     """
     booked = []
     still_waiting = []
     remaining_capacity = capacity
+    has_bookings = already_has_bookings
 
     for patient in queue:
         duration = duration_fn(patient)
-        if duration <= remaining_capacity:
+        cost = duration + (TURNAROUND_MIN if has_bookings else 0)
+        if cost <= remaining_capacity:
             booked.append(patient)
-            remaining_capacity -= duration
+            remaining_capacity -= cost
+            has_bookings = True
         else:
             still_waiting.append(patient)
 

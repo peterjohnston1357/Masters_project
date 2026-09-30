@@ -754,3 +754,28 @@ it implicitly from limited data. This is the same finding the booking-order
 diagnostic already pointed to at the packing-mechanism level: added
 sophistication doesn't automatically buy a measurable improvement, and is
 worth testing rather than assumed.
+
+
+## 2026-09-30 - Per-patient turnaround time added to session capacity
+
+**Decision:** A flat 20-minute turnaround/changeover time (sourced from
+an NHS Improvement report on operating theatre efficiency) is now
+charged between consecutive patients booked into the same session -
+every patient except the first one booked into it - implemented in
+first_fit_scan() (common.py), threaded through the gap-fill mechanism
+(gap_fill.py) so a session's later gap-fill pass still charges the
+correct turnaround for its first newly-booked patient, and reflected in
+reported utilisation and overrun figures (record_session_result()) for
+all five conditions, including the traditional heuristic (C0), whose
+own booking logic remains duration-blind by design but is now scored on
+the same turnaround-aware basis as the other four.
+
+**Correction (self-caught):** Turnaround time had been intended as part
+of the scheduling design from early on, but a review of the write-up
+against the actual implementation found it had never been built into
+the packing or reporting logic - session capacity was being treated as
+fully available for procedure time with no allowance for the gap
+between cases. Corrected by adding it explicitly (see Decision above)
+and regenerating all simulation results and figures, rather than
+leaving the report describing a mechanic the code didn't actually
+implement.

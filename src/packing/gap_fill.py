@@ -27,10 +27,16 @@ traditional heuristic or the two non-gap-fill data-driven conditions.
 from common import first_fit_scan
 
 
-def apply_gap_fill(queue, remaining_capacity_from_planning, duration_fn):
+def apply_gap_fill(queue, remaining_capacity_from_planning, duration_fn, already_has_bookings=True):
     """
     Second first-fit pass over the current queue, starting from whatever
-    capacity the original planning pass left unused. Returns
+    capacity the original planning pass left unused. already_has_bookings
+    defaults to True because gap-fill is only ever run against a session
+    that planning has already booked at least one patient into - if
+    planning booked nobody, there is no leftover capacity for gap-fill to
+    use in the first place. Passed through to first_fit_scan() so its
+    first newly-booked patient still incurs a turnaround charge, since it
+    isn't really the session's first patient overall. Returns
     (gap_filled_patients, final_remaining_capacity).
     """
-    return first_fit_scan(queue, remaining_capacity_from_planning, duration_fn)
+    return first_fit_scan(queue, remaining_capacity_from_planning, duration_fn, already_has_bookings)

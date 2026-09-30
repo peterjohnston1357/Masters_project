@@ -55,7 +55,7 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "packing"))
-from common import PRIORITY_RANK, sort_sessions, first_fit_scan
+from common import PRIORITY_RANK, sort_sessions, first_fit_scan, TURNAROUND_MIN
 from traditional_packer import pack_session as traditional_pack_session
 from gap_fill import apply_gap_fill
 
@@ -168,8 +168,8 @@ def record_session_result(session, booked, sim_week, predicted_lookup, condition
 
     predicted_used = sum(
         predicted_lookup[(surgeon_id, p["procedure_id"])] for p in booked
-    )
-    true_used = sum(p["true_duration_min"] for p in booked)
+    ) + TURNAROUND_MIN * max(0, len(booked) - 1)
+    true_used = sum(p["true_duration_min"] for p in booked) + TURNAROUND_MIN * max(0, len(booked) - 1)
 
     return {
         "condition": condition,
@@ -320,7 +320,7 @@ def run_first_fit(population, schedule, predicted_lookup, duration_source, gap_f
             queue = queues.setdefault(surgeon_id, [])
             duration_fn = duration_fn_for(surgeon_id)
             booked, remaining = first_fit_scan(queue, session["bookable_minutes"], duration_fn)
-            pending.setdefault(plan_week_num, []).append((session, booked, remaining))
+            pending.setdefault(plan_week_num, []).append((session, booked, remaining, bool(booked)))
 
     def execute_week(sim_week):
         """
@@ -330,12 +330,12 @@ def run_first_fit(population, schedule, predicted_lookup, duration_source, gap_f
         below (for any leftover planned-but-unexecuted weeks just beyond
         n_weeks), so both paths behave identically.
         """
-        for session, booked, remaining in pending.pop(sim_week, []):
+        for session, booked, remaining, had_bookings in pending.pop(sim_week, []):
             if gap_fill:
                 surgeon_id = session["assigned_surgeon_id"]
                 queue = queues.setdefault(surgeon_id, [])
                 duration_fn = duration_fn_for(surgeon_id)
-                gap_filled, _ = apply_gap_fill(queue, remaining, duration_fn)
+                gap_filled, _ = apply_gap_fill(queue, remaining, duration_fn, had_bookings)
                 total_booked = booked + gap_filled
             else:
                 total_booked = booked

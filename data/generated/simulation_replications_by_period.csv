@@ -1,16 +1,16 @@
 seed,condition,period,overrun_rate_pct,n_sessions
 1,C0: Traditional,ALL_DAY,0.0,30
-1,C0: Traditional,AM,0.0,150
-1,C0: Traditional,EVENING,0.0,18
-1,C0: Traditional,PM,1.3333333333333335,150
+1,C0: Traditional,AM,2.666666666666667,150
+1,C0: Traditional,EVENING,16.666666666666664,18
+1,C0: Traditional,PM,8.0,150
 1,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
-1,"C1: Predicted, no gap-fill",AM,5.333333333333334,150
-1,"C1: Predicted, no gap-fill",EVENING,16.666666666666664,18
-1,"C1: Predicted, no gap-fill",PM,8.0,150
+1,"C1: Predicted, no gap-fill",AM,3.3333333333333335,150
+1,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
+1,"C1: Predicted, no gap-fill",PM,10.666666666666668,150
 1,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
-1,"C2: Predicted, gap-fill",AM,3.3333333333333335,150
-1,"C2: Predicted, gap-fill",EVENING,16.666666666666664,18
-1,"C2: Predicted, gap-fill",PM,7.333333333333333,150
+1,"C2: Predicted, gap-fill",AM,4.666666666666667,150
+1,"C2: Predicted, gap-fill",EVENING,5.555555555555555,18
+1,"C2: Predicted, gap-fill",PM,10.0,150
 1,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 1,"C3: Oracle, no gap-fill",AM,0.0,150
 1,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -20,17 +20,17 @@ seed,condition,period,overrun_rate_pct,n_sessions
 1,"C4: Oracle, gap-fill",EVENING,0.0,18
 1,"C4: Oracle, gap-fill",PM,0.0,150
 2,C0: Traditional,ALL_DAY,0.0,30
-2,C0: Traditional,AM,2.0,150
+2,C0: Traditional,AM,6.666666666666667,150
 2,C0: Traditional,EVENING,5.555555555555555,18
-2,C0: Traditional,PM,1.3333333333333335,150
-2,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
-2,"C1: Predicted, no gap-fill",AM,3.3333333333333335,150
+2,C0: Traditional,PM,5.333333333333334,150
+2,"C1: Predicted, no gap-fill",ALL_DAY,6.666666666666667,30
+2,"C1: Predicted, no gap-fill",AM,8.666666666666668,150
 2,"C1: Predicted, no gap-fill",EVENING,0.0,18
-2,"C1: Predicted, no gap-fill",PM,6.0,150
-2,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
-2,"C2: Predicted, gap-fill",AM,6.0,150
+2,"C1: Predicted, no gap-fill",PM,8.0,150
+2,"C2: Predicted, gap-fill",ALL_DAY,10.0,30
+2,"C2: Predicted, gap-fill",AM,9.333333333333334,150
 2,"C2: Predicted, gap-fill",EVENING,0.0,18
-2,"C2: Predicted, gap-fill",PM,6.666666666666667,150
+2,"C2: Predicted, gap-fill",PM,8.666666666666668,150
 2,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 2,"C3: Oracle, no gap-fill",AM,0.0,150
 2,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -40,17 +40,17 @@ seed,condition,period,overrun_rate_pct,n_sessions
 2,"C4: Oracle, gap-fill",EVENING,0.0,18
 2,"C4: Oracle, gap-fill",PM,0.0,150
 3,C0: Traditional,ALL_DAY,0.0,30
-3,C0: Traditional,AM,0.0,150
+3,C0: Traditional,AM,6.666666666666667,150
 3,C0: Traditional,EVENING,16.666666666666664,18
-3,C0: Traditional,PM,0.6666666666666667,150
-3,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
-3,"C1: Predicted, no gap-fill",AM,2.666666666666667,150
-3,"C1: Predicted, no gap-fill",EVENING,16.666666666666664,18
-3,"C1: Predicted, no gap-fill",PM,3.3333333333333335,150
+3,C0: Traditional,PM,5.333333333333334,150
+3,"C1: Predicted, no gap-fill",ALL_DAY,6.666666666666667,30
+3,"C1: Predicted, no gap-fill",AM,5.333333333333334,150
+3,"C1: Predicted, no gap-fill",EVENING,22.22222222222222,18
+3,"C1: Predicted, no gap-fill",PM,4.666666666666667,150
 3,"C2: Predicted, gap-fill",ALL_DAY,6.666666666666667,30
-3,"C2: Predicted, gap-fill",AM,3.3333333333333335,150
-3,"C2: Predicted, gap-fill",EVENING,16.666666666666664,18
-3,"C2: Predicted, gap-fill",PM,3.3333333333333335,150
+3,"C2: Predicted, gap-fill",AM,6.0,150
+3,"C2: Predicted, gap-fill",EVENING,22.22222222222222,18
+3,"C2: Predicted, gap-fill",PM,4.0,150
 3,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 3,"C3: Oracle, no gap-fill",AM,0.0,150
 3,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -60,17 +60,17 @@ seed,condition,period,overrun_rate_pct,n_sessions
 3,"C4: Oracle, gap-fill",EVENING,0.0,18
 3,"C4: Oracle, gap-fill",PM,0.0,150
 4,C0: Traditional,ALL_DAY,0.0,30
-4,C0: Traditional,AM,1.3333333333333335,150
-4,C0: Traditional,EVENING,0.0,18
-4,C0: Traditional,PM,2.0,150
-4,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
+4,C0: Traditional,AM,4.666666666666667,150
+4,C0: Traditional,EVENING,5.555555555555555,18
+4,C0: Traditional,PM,7.333333333333333,150
+4,"C1: Predicted, no gap-fill",ALL_DAY,6.666666666666667,30
 4,"C1: Predicted, no gap-fill",AM,4.666666666666667,150
 4,"C1: Predicted, no gap-fill",EVENING,11.11111111111111,18
-4,"C1: Predicted, no gap-fill",PM,4.0,150
-4,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
+4,"C1: Predicted, no gap-fill",PM,7.333333333333333,150
+4,"C2: Predicted, gap-fill",ALL_DAY,6.666666666666667,30
 4,"C2: Predicted, gap-fill",AM,5.333333333333334,150
-4,"C2: Predicted, gap-fill",EVENING,11.11111111111111,18
-4,"C2: Predicted, gap-fill",PM,5.333333333333334,150
+4,"C2: Predicted, gap-fill",EVENING,16.666666666666664,18
+4,"C2: Predicted, gap-fill",PM,8.0,150
 4,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 4,"C3: Oracle, no gap-fill",AM,0.0,150
 4,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -79,16 +79,16 @@ seed,condition,period,overrun_rate_pct,n_sessions
 4,"C4: Oracle, gap-fill",AM,0.0,150
 4,"C4: Oracle, gap-fill",EVENING,0.0,18
 4,"C4: Oracle, gap-fill",PM,0.0,150
-5,C0: Traditional,ALL_DAY,0.0,30
-5,C0: Traditional,AM,1.3333333333333335,150
-5,C0: Traditional,EVENING,0.0,18
-5,C0: Traditional,PM,2.0,150
-5,"C1: Predicted, no gap-fill",ALL_DAY,6.666666666666667,30
-5,"C1: Predicted, no gap-fill",AM,5.333333333333334,150
-5,"C1: Predicted, no gap-fill",EVENING,11.11111111111111,18
-5,"C1: Predicted, no gap-fill",PM,9.333333333333334,150
-5,"C2: Predicted, gap-fill",ALL_DAY,6.666666666666667,30
-5,"C2: Predicted, gap-fill",AM,7.333333333333333,150
+5,C0: Traditional,ALL_DAY,3.3333333333333335,30
+5,C0: Traditional,AM,2.666666666666667,150
+5,C0: Traditional,EVENING,11.11111111111111,18
+5,C0: Traditional,PM,7.333333333333333,150
+5,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
+5,"C1: Predicted, no gap-fill",AM,8.0,150
+5,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
+5,"C1: Predicted, no gap-fill",PM,8.666666666666668,150
+5,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
+5,"C2: Predicted, gap-fill",AM,8.0,150
 5,"C2: Predicted, gap-fill",EVENING,5.555555555555555,18
 5,"C2: Predicted, gap-fill",PM,8.666666666666668,150
 5,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
@@ -100,17 +100,17 @@ seed,condition,period,overrun_rate_pct,n_sessions
 5,"C4: Oracle, gap-fill",EVENING,0.0,18
 5,"C4: Oracle, gap-fill",PM,0.0,150
 6,C0: Traditional,ALL_DAY,0.0,30
-6,C0: Traditional,AM,0.6666666666666667,150
-6,C0: Traditional,EVENING,16.666666666666664,18
-6,C0: Traditional,PM,2.0,150
-6,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
-6,"C1: Predicted, no gap-fill",AM,6.0,150
-6,"C1: Predicted, no gap-fill",EVENING,22.22222222222222,18
-6,"C1: Predicted, no gap-fill",PM,9.333333333333334,150
-6,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
-6,"C2: Predicted, gap-fill",AM,9.333333333333334,150
-6,"C2: Predicted, gap-fill",EVENING,16.666666666666664,18
-6,"C2: Predicted, gap-fill",PM,9.333333333333334,150
+6,C0: Traditional,AM,9.333333333333334,150
+6,C0: Traditional,EVENING,22.22222222222222,18
+6,C0: Traditional,PM,8.0,150
+6,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
+6,"C1: Predicted, no gap-fill",AM,4.0,150
+6,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
+6,"C1: Predicted, no gap-fill",PM,10.666666666666668,150
+6,"C2: Predicted, gap-fill",ALL_DAY,3.3333333333333335,30
+6,"C2: Predicted, gap-fill",AM,6.0,150
+6,"C2: Predicted, gap-fill",EVENING,5.555555555555555,18
+6,"C2: Predicted, gap-fill",PM,11.333333333333332,150
 6,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 6,"C3: Oracle, no gap-fill",AM,0.0,150
 6,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -120,17 +120,17 @@ seed,condition,period,overrun_rate_pct,n_sessions
 6,"C4: Oracle, gap-fill",EVENING,0.0,18
 6,"C4: Oracle, gap-fill",PM,0.0,150
 7,C0: Traditional,ALL_DAY,0.0,30
-7,C0: Traditional,AM,0.0,150
-7,C0: Traditional,EVENING,0.0,18
-7,C0: Traditional,PM,3.3333333333333335,150
+7,C0: Traditional,AM,5.333333333333334,150
+7,C0: Traditional,EVENING,11.11111111111111,18
+7,C0: Traditional,PM,8.0,150
 7,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
-7,"C1: Predicted, no gap-fill",AM,5.333333333333334,150
-7,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
-7,"C1: Predicted, no gap-fill",PM,7.333333333333333,150
+7,"C1: Predicted, no gap-fill",AM,8.0,150
+7,"C1: Predicted, no gap-fill",EVENING,0.0,18
+7,"C1: Predicted, no gap-fill",PM,10.0,150
 7,"C2: Predicted, gap-fill",ALL_DAY,3.3333333333333335,30
-7,"C2: Predicted, gap-fill",AM,6.666666666666667,150
-7,"C2: Predicted, gap-fill",EVENING,5.555555555555555,18
-7,"C2: Predicted, gap-fill",PM,8.0,150
+7,"C2: Predicted, gap-fill",AM,8.0,150
+7,"C2: Predicted, gap-fill",EVENING,0.0,18
+7,"C2: Predicted, gap-fill",PM,10.666666666666668,150
 7,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 7,"C3: Oracle, no gap-fill",AM,0.0,150
 7,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -140,16 +140,16 @@ seed,condition,period,overrun_rate_pct,n_sessions
 7,"C4: Oracle, gap-fill",EVENING,0.0,18
 7,"C4: Oracle, gap-fill",PM,0.0,150
 8,C0: Traditional,ALL_DAY,0.0,30
-8,C0: Traditional,AM,0.6666666666666667,150
+8,C0: Traditional,AM,4.666666666666667,150
 8,C0: Traditional,EVENING,11.11111111111111,18
-8,C0: Traditional,PM,2.0,150
-8,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
-8,"C1: Predicted, no gap-fill",AM,5.333333333333334,150
-8,"C1: Predicted, no gap-fill",EVENING,11.11111111111111,18
+8,C0: Traditional,PM,6.0,150
+8,"C1: Predicted, no gap-fill",ALL_DAY,10.0,30
+8,"C1: Predicted, no gap-fill",AM,4.666666666666667,150
+8,"C1: Predicted, no gap-fill",EVENING,0.0,18
 8,"C1: Predicted, no gap-fill",PM,8.0,150
-8,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
-8,"C2: Predicted, gap-fill",AM,6.0,150
-8,"C2: Predicted, gap-fill",EVENING,11.11111111111111,18
+8,"C2: Predicted, gap-fill",ALL_DAY,10.0,30
+8,"C2: Predicted, gap-fill",AM,4.0,150
+8,"C2: Predicted, gap-fill",EVENING,0.0,18
 8,"C2: Predicted, gap-fill",PM,9.333333333333334,150
 8,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 8,"C3: Oracle, no gap-fill",AM,0.0,150
@@ -159,18 +159,18 @@ seed,condition,period,overrun_rate_pct,n_sessions
 8,"C4: Oracle, gap-fill",AM,0.0,150
 8,"C4: Oracle, gap-fill",EVENING,0.0,18
 8,"C4: Oracle, gap-fill",PM,0.0,150
-9,C0: Traditional,ALL_DAY,0.0,30
-9,C0: Traditional,AM,1.3333333333333335,150
+9,C0: Traditional,ALL_DAY,6.666666666666667,30
+9,C0: Traditional,AM,6.666666666666667,150
 9,C0: Traditional,EVENING,5.555555555555555,18
-9,C0: Traditional,PM,2.666666666666667,150
-9,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
-9,"C1: Predicted, no gap-fill",AM,8.0,150
-9,"C1: Predicted, no gap-fill",EVENING,11.11111111111111,18
-9,"C1: Predicted, no gap-fill",PM,5.333333333333334,150
-9,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
-9,"C2: Predicted, gap-fill",AM,7.333333333333333,150
+9,C0: Traditional,PM,7.333333333333333,150
+9,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
+9,"C1: Predicted, no gap-fill",AM,4.666666666666667,150
+9,"C1: Predicted, no gap-fill",EVENING,16.666666666666664,18
+9,"C1: Predicted, no gap-fill",PM,8.0,150
+9,"C2: Predicted, gap-fill",ALL_DAY,3.3333333333333335,30
+9,"C2: Predicted, gap-fill",AM,8.0,150
 9,"C2: Predicted, gap-fill",EVENING,16.666666666666664,18
-9,"C2: Predicted, gap-fill",PM,6.0,150
+9,"C2: Predicted, gap-fill",PM,9.333333333333334,150
 9,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 9,"C3: Oracle, no gap-fill",AM,0.0,150
 9,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -179,18 +179,18 @@ seed,condition,period,overrun_rate_pct,n_sessions
 9,"C4: Oracle, gap-fill",AM,0.0,150
 9,"C4: Oracle, gap-fill",EVENING,0.0,18
 9,"C4: Oracle, gap-fill",PM,0.0,150
-10,C0: Traditional,ALL_DAY,0.0,30
-10,C0: Traditional,AM,0.6666666666666667,150
-10,C0: Traditional,EVENING,0.0,18
-10,C0: Traditional,PM,0.6666666666666667,150
+10,C0: Traditional,ALL_DAY,3.3333333333333335,30
+10,C0: Traditional,AM,2.666666666666667,150
+10,C0: Traditional,EVENING,5.555555555555555,18
+10,C0: Traditional,PM,5.333333333333334,150
 10,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
-10,"C1: Predicted, no gap-fill",AM,3.3333333333333335,150
-10,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
-10,"C1: Predicted, no gap-fill",PM,3.3333333333333335,150
+10,"C1: Predicted, no gap-fill",AM,5.333333333333334,150
+10,"C1: Predicted, no gap-fill",EVENING,0.0,18
+10,"C1: Predicted, no gap-fill",PM,5.333333333333334,150
 10,"C2: Predicted, gap-fill",ALL_DAY,3.3333333333333335,30
 10,"C2: Predicted, gap-fill",AM,4.666666666666667,150
-10,"C2: Predicted, gap-fill",EVENING,5.555555555555555,18
-10,"C2: Predicted, gap-fill",PM,3.3333333333333335,150
+10,"C2: Predicted, gap-fill",EVENING,0.0,18
+10,"C2: Predicted, gap-fill",PM,5.333333333333334,150
 10,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 10,"C3: Oracle, no gap-fill",AM,0.0,150
 10,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -199,18 +199,18 @@ seed,condition,period,overrun_rate_pct,n_sessions
 10,"C4: Oracle, gap-fill",AM,0.0,150
 10,"C4: Oracle, gap-fill",EVENING,0.0,18
 10,"C4: Oracle, gap-fill",PM,0.0,150
-11,C0: Traditional,ALL_DAY,0.0,30
-11,C0: Traditional,AM,0.6666666666666667,150
-11,C0: Traditional,EVENING,5.555555555555555,18
-11,C0: Traditional,PM,0.6666666666666667,150
+11,C0: Traditional,ALL_DAY,3.3333333333333335,30
+11,C0: Traditional,AM,6.666666666666667,150
+11,C0: Traditional,EVENING,16.666666666666664,18
+11,C0: Traditional,PM,4.666666666666667,150
 11,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
-11,"C1: Predicted, no gap-fill",AM,2.0,150
-11,"C1: Predicted, no gap-fill",EVENING,11.11111111111111,18
-11,"C1: Predicted, no gap-fill",PM,4.666666666666667,150
+11,"C1: Predicted, no gap-fill",AM,6.666666666666667,150
+11,"C1: Predicted, no gap-fill",EVENING,16.666666666666664,18
+11,"C1: Predicted, no gap-fill",PM,7.333333333333333,150
 11,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
-11,"C2: Predicted, gap-fill",AM,4.666666666666667,150
-11,"C2: Predicted, gap-fill",EVENING,11.11111111111111,18
-11,"C2: Predicted, gap-fill",PM,6.0,150
+11,"C2: Predicted, gap-fill",AM,8.0,150
+11,"C2: Predicted, gap-fill",EVENING,16.666666666666664,18
+11,"C2: Predicted, gap-fill",PM,8.0,150
 11,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 11,"C3: Oracle, no gap-fill",AM,0.0,150
 11,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -219,18 +219,18 @@ seed,condition,period,overrun_rate_pct,n_sessions
 11,"C4: Oracle, gap-fill",AM,0.0,150
 11,"C4: Oracle, gap-fill",EVENING,0.0,18
 11,"C4: Oracle, gap-fill",PM,0.0,150
-12,C0: Traditional,ALL_DAY,0.0,30
-12,C0: Traditional,AM,0.0,150
-12,C0: Traditional,EVENING,5.555555555555555,18
-12,C0: Traditional,PM,1.3333333333333335,150
-12,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
-12,"C1: Predicted, no gap-fill",AM,4.666666666666667,150
+12,C0: Traditional,ALL_DAY,3.3333333333333335,30
+12,C0: Traditional,AM,4.666666666666667,150
+12,C0: Traditional,EVENING,11.11111111111111,18
+12,C0: Traditional,PM,4.666666666666667,150
+12,"C1: Predicted, no gap-fill",ALL_DAY,13.333333333333334,30
+12,"C1: Predicted, no gap-fill",AM,7.333333333333333,150
 12,"C1: Predicted, no gap-fill",EVENING,11.11111111111111,18
-12,"C1: Predicted, no gap-fill",PM,9.333333333333334,150
-12,"C2: Predicted, gap-fill",ALL_DAY,10.0,30
-12,"C2: Predicted, gap-fill",AM,4.666666666666667,150
-12,"C2: Predicted, gap-fill",EVENING,16.666666666666664,18
-12,"C2: Predicted, gap-fill",PM,10.0,150
+12,"C1: Predicted, no gap-fill",PM,6.666666666666667,150
+12,"C2: Predicted, gap-fill",ALL_DAY,13.333333333333334,30
+12,"C2: Predicted, gap-fill",AM,8.0,150
+12,"C2: Predicted, gap-fill",EVENING,5.555555555555555,18
+12,"C2: Predicted, gap-fill",PM,9.333333333333334,150
 12,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 12,"C3: Oracle, no gap-fill",AM,0.0,150
 12,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -240,17 +240,17 @@ seed,condition,period,overrun_rate_pct,n_sessions
 12,"C4: Oracle, gap-fill",EVENING,0.0,18
 12,"C4: Oracle, gap-fill",PM,0.0,150
 13,C0: Traditional,ALL_DAY,3.3333333333333335,30
-13,C0: Traditional,AM,0.0,150
-13,C0: Traditional,EVENING,0.0,18
-13,C0: Traditional,PM,2.0,150
+13,C0: Traditional,AM,6.0,150
+13,C0: Traditional,EVENING,11.11111111111111,18
+13,C0: Traditional,PM,6.0,150
 13,"C1: Predicted, no gap-fill",ALL_DAY,10.0,30
-13,"C1: Predicted, no gap-fill",AM,3.3333333333333335,150
-13,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
-13,"C1: Predicted, no gap-fill",PM,4.0,150
+13,"C1: Predicted, no gap-fill",AM,4.666666666666667,150
+13,"C1: Predicted, no gap-fill",EVENING,16.666666666666664,18
+13,"C1: Predicted, no gap-fill",PM,7.333333333333333,150
 13,"C2: Predicted, gap-fill",ALL_DAY,10.0,30
-13,"C2: Predicted, gap-fill",AM,3.3333333333333335,150
-13,"C2: Predicted, gap-fill",EVENING,11.11111111111111,18
-13,"C2: Predicted, gap-fill",PM,5.333333333333334,150
+13,"C2: Predicted, gap-fill",AM,7.333333333333333,150
+13,"C2: Predicted, gap-fill",EVENING,16.666666666666664,18
+13,"C2: Predicted, gap-fill",PM,8.666666666666668,150
 13,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 13,"C3: Oracle, no gap-fill",AM,0.0,150
 13,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -260,17 +260,17 @@ seed,condition,period,overrun_rate_pct,n_sessions
 13,"C4: Oracle, gap-fill",EVENING,0.0,18
 13,"C4: Oracle, gap-fill",PM,0.0,150
 14,C0: Traditional,ALL_DAY,0.0,30
-14,C0: Traditional,AM,0.6666666666666667,150
-14,C0: Traditional,EVENING,5.555555555555555,18
-14,C0: Traditional,PM,1.3333333333333335,150
-14,"C1: Predicted, no gap-fill",ALL_DAY,6.666666666666667,30
-14,"C1: Predicted, no gap-fill",AM,8.666666666666668,150
-14,"C1: Predicted, no gap-fill",EVENING,11.11111111111111,18
-14,"C1: Predicted, no gap-fill",PM,6.0,150
-14,"C2: Predicted, gap-fill",ALL_DAY,6.666666666666667,30
-14,"C2: Predicted, gap-fill",AM,8.0,150
-14,"C2: Predicted, gap-fill",EVENING,11.11111111111111,18
-14,"C2: Predicted, gap-fill",PM,8.0,150
+14,C0: Traditional,AM,7.333333333333333,150
+14,C0: Traditional,EVENING,22.22222222222222,18
+14,C0: Traditional,PM,8.0,150
+14,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
+14,"C1: Predicted, no gap-fill",AM,7.333333333333333,150
+14,"C1: Predicted, no gap-fill",EVENING,16.666666666666664,18
+14,"C1: Predicted, no gap-fill",PM,8.666666666666668,150
+14,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
+14,"C2: Predicted, gap-fill",AM,7.333333333333333,150
+14,"C2: Predicted, gap-fill",EVENING,16.666666666666664,18
+14,"C2: Predicted, gap-fill",PM,9.333333333333334,150
 14,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 14,"C3: Oracle, no gap-fill",AM,0.0,150
 14,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -279,18 +279,18 @@ seed,condition,period,overrun_rate_pct,n_sessions
 14,"C4: Oracle, gap-fill",AM,0.0,150
 14,"C4: Oracle, gap-fill",EVENING,0.0,18
 14,"C4: Oracle, gap-fill",PM,0.0,150
-15,C0: Traditional,ALL_DAY,0.0,30
-15,C0: Traditional,AM,0.0,150
+15,C0: Traditional,ALL_DAY,3.3333333333333335,30
+15,C0: Traditional,AM,7.333333333333333,150
 15,C0: Traditional,EVENING,5.555555555555555,18
-15,C0: Traditional,PM,1.3333333333333335,150
-15,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
-15,"C1: Predicted, no gap-fill",AM,3.3333333333333335,150
-15,"C1: Predicted, no gap-fill",EVENING,22.22222222222222,18
-15,"C1: Predicted, no gap-fill",PM,5.333333333333334,150
-15,"C2: Predicted, gap-fill",ALL_DAY,3.3333333333333335,30
-15,"C2: Predicted, gap-fill",AM,4.666666666666667,150
-15,"C2: Predicted, gap-fill",EVENING,27.77777777777778,18
-15,"C2: Predicted, gap-fill",PM,6.0,150
+15,C0: Traditional,PM,6.666666666666667,150
+15,"C1: Predicted, no gap-fill",ALL_DAY,6.666666666666667,30
+15,"C1: Predicted, no gap-fill",AM,5.333333333333334,150
+15,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
+15,"C1: Predicted, no gap-fill",PM,9.333333333333334,150
+15,"C2: Predicted, gap-fill",ALL_DAY,6.666666666666667,30
+15,"C2: Predicted, gap-fill",AM,6.0,150
+15,"C2: Predicted, gap-fill",EVENING,5.555555555555555,18
+15,"C2: Predicted, gap-fill",PM,10.0,150
 15,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 15,"C3: Oracle, no gap-fill",AM,0.0,150
 15,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -300,17 +300,17 @@ seed,condition,period,overrun_rate_pct,n_sessions
 15,"C4: Oracle, gap-fill",EVENING,0.0,18
 15,"C4: Oracle, gap-fill",PM,0.0,150
 16,C0: Traditional,ALL_DAY,0.0,30
-16,C0: Traditional,AM,0.6666666666666667,150
-16,C0: Traditional,EVENING,0.0,18
-16,C0: Traditional,PM,2.666666666666667,150
+16,C0: Traditional,AM,4.666666666666667,150
+16,C0: Traditional,EVENING,11.11111111111111,18
+16,C0: Traditional,PM,6.0,150
 16,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
 16,"C1: Predicted, no gap-fill",AM,4.666666666666667,150
-16,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
-16,"C1: Predicted, no gap-fill",PM,5.333333333333334,150
+16,"C1: Predicted, no gap-fill",EVENING,0.0,18
+16,"C1: Predicted, no gap-fill",PM,10.0,150
 16,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
-16,"C2: Predicted, gap-fill",AM,6.0,150
-16,"C2: Predicted, gap-fill",EVENING,16.666666666666664,18
-16,"C2: Predicted, gap-fill",PM,8.0,150
+16,"C2: Predicted, gap-fill",AM,5.333333333333334,150
+16,"C2: Predicted, gap-fill",EVENING,0.0,18
+16,"C2: Predicted, gap-fill",PM,10.666666666666668,150
 16,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 16,"C3: Oracle, no gap-fill",AM,0.0,150
 16,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -319,16 +319,16 @@ seed,condition,period,overrun_rate_pct,n_sessions
 16,"C4: Oracle, gap-fill",AM,0.0,150
 16,"C4: Oracle, gap-fill",EVENING,0.0,18
 16,"C4: Oracle, gap-fill",PM,0.0,150
-17,C0: Traditional,ALL_DAY,3.3333333333333335,30
-17,C0: Traditional,AM,0.6666666666666667,150
-17,C0: Traditional,EVENING,0.0,18
-17,C0: Traditional,PM,1.3333333333333335,150
-17,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
-17,"C1: Predicted, no gap-fill",AM,6.666666666666667,150
+17,C0: Traditional,ALL_DAY,6.666666666666667,30
+17,C0: Traditional,AM,8.0,150
+17,C0: Traditional,EVENING,5.555555555555555,18
+17,C0: Traditional,PM,5.333333333333334,150
+17,"C1: Predicted, no gap-fill",ALL_DAY,6.666666666666667,30
+17,"C1: Predicted, no gap-fill",AM,5.333333333333334,150
 17,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
-17,"C1: Predicted, no gap-fill",PM,5.333333333333334,150
+17,"C1: Predicted, no gap-fill",PM,6.666666666666667,150
 17,"C2: Predicted, gap-fill",ALL_DAY,6.666666666666667,30
-17,"C2: Predicted, gap-fill",AM,8.0,150
+17,"C2: Predicted, gap-fill",AM,7.333333333333333,150
 17,"C2: Predicted, gap-fill",EVENING,5.555555555555555,18
 17,"C2: Predicted, gap-fill",PM,6.0,150
 17,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
@@ -339,18 +339,18 @@ seed,condition,period,overrun_rate_pct,n_sessions
 17,"C4: Oracle, gap-fill",AM,0.0,150
 17,"C4: Oracle, gap-fill",EVENING,0.0,18
 17,"C4: Oracle, gap-fill",PM,0.0,150
-18,C0: Traditional,ALL_DAY,0.0,30
-18,C0: Traditional,AM,0.0,150
-18,C0: Traditional,EVENING,0.0,18
-18,C0: Traditional,PM,3.3333333333333335,150
-18,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
-18,"C1: Predicted, no gap-fill",AM,6.0,150
-18,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
-18,"C1: Predicted, no gap-fill",PM,6.666666666666667,150
-18,"C2: Predicted, gap-fill",ALL_DAY,6.666666666666667,30
-18,"C2: Predicted, gap-fill",AM,6.666666666666667,150
-18,"C2: Predicted, gap-fill",EVENING,5.555555555555555,18
-18,"C2: Predicted, gap-fill",PM,10.666666666666668,150
+18,C0: Traditional,ALL_DAY,3.3333333333333335,30
+18,C0: Traditional,AM,3.3333333333333335,150
+18,C0: Traditional,EVENING,11.11111111111111,18
+18,C0: Traditional,PM,6.0,150
+18,"C1: Predicted, no gap-fill",ALL_DAY,6.666666666666667,30
+18,"C1: Predicted, no gap-fill",AM,4.666666666666667,150
+18,"C1: Predicted, no gap-fill",EVENING,11.11111111111111,18
+18,"C1: Predicted, no gap-fill",PM,7.333333333333333,150
+18,"C2: Predicted, gap-fill",ALL_DAY,10.0,30
+18,"C2: Predicted, gap-fill",AM,4.666666666666667,150
+18,"C2: Predicted, gap-fill",EVENING,11.11111111111111,18
+18,"C2: Predicted, gap-fill",PM,10.0,150
 18,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 18,"C3: Oracle, no gap-fill",AM,0.0,150
 18,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -360,17 +360,17 @@ seed,condition,period,overrun_rate_pct,n_sessions
 18,"C4: Oracle, gap-fill",EVENING,0.0,18
 18,"C4: Oracle, gap-fill",PM,0.0,150
 19,C0: Traditional,ALL_DAY,0.0,30
-19,C0: Traditional,AM,2.0,150
-19,C0: Traditional,EVENING,22.22222222222222,18
-19,C0: Traditional,PM,0.6666666666666667,150
-19,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
-19,"C1: Predicted, no gap-fill",AM,8.666666666666668,150
-19,"C1: Predicted, no gap-fill",EVENING,16.666666666666664,18
-19,"C1: Predicted, no gap-fill",PM,3.3333333333333335,150
-19,"C2: Predicted, gap-fill",ALL_DAY,3.3333333333333335,30
-19,"C2: Predicted, gap-fill",AM,8.666666666666668,150
+19,C0: Traditional,AM,10.0,150
+19,C0: Traditional,EVENING,27.77777777777778,18
+19,C0: Traditional,PM,6.0,150
+19,"C1: Predicted, no gap-fill",ALL_DAY,10.0,30
+19,"C1: Predicted, no gap-fill",AM,10.0,150
+19,"C1: Predicted, no gap-fill",EVENING,11.11111111111111,18
+19,"C1: Predicted, no gap-fill",PM,8.0,150
+19,"C2: Predicted, gap-fill",ALL_DAY,10.0,30
+19,"C2: Predicted, gap-fill",AM,10.0,150
 19,"C2: Predicted, gap-fill",EVENING,11.11111111111111,18
-19,"C2: Predicted, gap-fill",PM,4.0,150
+19,"C2: Predicted, gap-fill",PM,9.333333333333334,150
 19,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 19,"C3: Oracle, no gap-fill",AM,0.0,150
 19,"C3: Oracle, no gap-fill",EVENING,0.0,18
@@ -379,18 +379,18 @@ seed,condition,period,overrun_rate_pct,n_sessions
 19,"C4: Oracle, gap-fill",AM,0.0,150
 19,"C4: Oracle, gap-fill",EVENING,0.0,18
 19,"C4: Oracle, gap-fill",PM,0.0,150
-20,C0: Traditional,ALL_DAY,0.0,30
-20,C0: Traditional,AM,1.3333333333333335,150
-20,C0: Traditional,EVENING,0.0,18
-20,C0: Traditional,PM,2.0,150
-20,"C1: Predicted, no gap-fill",ALL_DAY,3.3333333333333335,30
-20,"C1: Predicted, no gap-fill",AM,2.666666666666667,150
-20,"C1: Predicted, no gap-fill",EVENING,0.0,18
-20,"C1: Predicted, no gap-fill",PM,5.333333333333334,150
-20,"C2: Predicted, gap-fill",ALL_DAY,3.3333333333333335,30
-20,"C2: Predicted, gap-fill",AM,4.0,150
+20,C0: Traditional,ALL_DAY,3.3333333333333335,30
+20,C0: Traditional,AM,2.666666666666667,150
+20,C0: Traditional,EVENING,5.555555555555555,18
+20,C0: Traditional,PM,6.0,150
+20,"C1: Predicted, no gap-fill",ALL_DAY,0.0,30
+20,"C1: Predicted, no gap-fill",AM,1.3333333333333335,150
+20,"C1: Predicted, no gap-fill",EVENING,5.555555555555555,18
+20,"C1: Predicted, no gap-fill",PM,8.666666666666668,150
+20,"C2: Predicted, gap-fill",ALL_DAY,0.0,30
+20,"C2: Predicted, gap-fill",AM,2.666666666666667,150
 20,"C2: Predicted, gap-fill",EVENING,5.555555555555555,18
-20,"C2: Predicted, gap-fill",PM,6.666666666666667,150
+20,"C2: Predicted, gap-fill",PM,8.666666666666668,150
 20,"C3: Oracle, no gap-fill",ALL_DAY,0.0,30
 20,"C3: Oracle, no gap-fill",AM,0.0,150
 20,"C3: Oracle, no gap-fill",EVENING,0.0,18

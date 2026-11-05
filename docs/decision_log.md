@@ -779,3 +779,41 @@ between cases. Corrected by adding it explicitly (see Decision above)
 and regenerating all simulation results and figures, rather than
 leaving the report describing a mechanic the code didn't actually
 implement.
+
+
+## 2026-11-05 - Trimmed statistical model cells to stats-only, replaced ML comparison chart
+
+**Decision:** Removed the plotting code from the logistic regression and OLS severity
+regression cells, leaving them as stats-only (coefficients, odds ratios/R², p-values)
+with no accompanying chart. Replaced the original two-boxplot ML-vs-backoff comparison
+chart with a single paired-difference plot: a boxplot of (ML error - backoff error) per
+replication, with a reference line at zero (no difference) and the mean plus 95% CI
+overlaid, outliers excluded via showfliers=False. Added a new cell plotting backoff
+predictions against QRF predictions directly, with a "perfect agreement" reference line
+and the Pearson r / R² reported alongside.
+
+**Rationale:** The original logistic/OLS charts and the two-boxplot ML comparison were
+useful while exploring the data but added clutter without adding insight once the stats
+alone made the point. The paired-difference plot shows the actual quantity being tested
+(the difference) rather than two overlapping distributions, which matches how the paired
+t-test/Wilcoxon results are reported in the text. The prediction-agreement scatter gives
+a direct visual check of how closely the two duration-prediction methods agree, which the
+summary statistics alone don't show.
+
+
+## 2026-11-05 - Added trimmed "headline" figures for report main text
+
+**Decision:** Added a trimmed condition-comparisons figure (3 metrics x 3 key
+comparisons, rather than the full 5x5 grid) and trimmed RTT compliance figures (one
+metric, all five comparisons laid out in a single row rather than stacked) for use in
+the main report text, saved separately as condition_comparisons_headline.png,
+rtt_headline_initial.png and rtt_headline_new_arrivals_eligible.png. The original full
+grids are left untouched in their own cells for the appendices.
+
+**Rationale:** The full grids are too dense to read at the size they'd need to be
+printed in the main text, and the report only discusses a subset of the comparisons
+there anyway. Keeping the full versions in separate cells means the appendix figures
+don't depend on the report-text figures or vice versa, so either can be regenerated
+independently if the underlying data changes.
+
+
